@@ -53,7 +53,7 @@ export default function LevelsPage() {
   }, [authLoading, isAuthenticated, navigate]);
 
   // استلام المستويات الدراسية من الخادم
-  const { data: levels, isLoading, isError, refetch } = useQuery<Level[]>({
+  const { data: levelsResponse, isLoading, isError, refetch } = useQuery<{ success?: boolean, data?: Level[] } | Level[]>({
     queryKey: ['/api/levels'],
     queryFn: async () => {
       const response = await fetch('/api/levels');
@@ -62,6 +62,11 @@ export default function LevelsPage() {
     },
     enabled: isAuthenticated
   });
+  
+  // تحديد ما إذا كانت البيانات تستخدم الصيغة الجديدة وجلب المصفوفة المناسبة
+  const levels = Array.isArray(levelsResponse) 
+    ? levelsResponse 
+    : levelsResponse?.data || [];
 
   // إضافة مستوى دراسي جديد
   const addMutation = useMutation({

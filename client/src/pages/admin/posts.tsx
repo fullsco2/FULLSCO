@@ -56,20 +56,26 @@ const AdminPosts = () => {
 
   // Fetch posts
   const {
-    data: posts,
+    data: postsResponse,
     isLoading,
     error,
     refetch
-  } = useQuery<Post[]>({
+  } = useQuery<{ success: boolean, data: Post[] }>({
     queryKey: ["/api/posts"],
     enabled: isAuthenticated,
   });
+  
+  // استخراج المقالات من بيانات الاستجابة
+  const posts = postsResponse?.data || [];
 
   // Fetch users for author info
-  const { data: users } = useQuery<User[]>({
+  const { data: usersResponse } = useQuery<{ success: boolean, data: User[] }>({
     queryKey: ["/api/users"],
     enabled: isAuthenticated,
   });
+  
+  // استخراج المستخدمين من بيانات الاستجابة
+  const users = usersResponse?.data || [];
 
   // حذف المقال
   const deleteMutation = useMutation({
@@ -110,16 +116,16 @@ const AdminPosts = () => {
     return author?.fullName || author?.username || "كاتب غير معروف";
   };
 
-  const filteredPosts = posts?.filter((post) => {
+  const filteredPosts = posts && Array.isArray(posts) ? posts.filter((post) => {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
     return (
       post.title.toLowerCase().includes(search) ||
-      post.content.toLowerCase().includes(search) ||
+      (post.content && post.content.toLowerCase().includes(search)) ||
       (post.excerpt && post.excerpt.toLowerCase().includes(search)) ||
       getAuthorName(post.authorId).toLowerCase().includes(search)
     );
-  });
+  }) : [];
 
   if (authLoading || !isAuthenticated) {
     return (

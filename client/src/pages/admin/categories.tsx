@@ -79,7 +79,7 @@ export default function CategoriesPage() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
 
   // استلام التصنيفات من الخادم
-  const { data: categories, isLoading, isError, refetch } = useQuery<Category[]>({
+  const { data: categoriesResponse, isLoading, isError, refetch } = useQuery<{ success?: boolean, data?: Category[] } | Category[]>({
     queryKey: ['categories'],
     queryFn: async () => {
       const response = await fetch('/api/categories');
@@ -87,6 +87,11 @@ export default function CategoriesPage() {
       return response.json();
     }
   });
+  
+  // تحديد ما إذا كانت البيانات تستخدم الصيغة الجديدة وجلب المصفوفة المناسبة
+  const categories = Array.isArray(categoriesResponse) 
+    ? categoriesResponse 
+    : categoriesResponse?.data || [];
 
   // إضافة تصنيف جديد
   const addMutation = useMutation({

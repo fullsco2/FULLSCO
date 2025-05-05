@@ -55,7 +55,7 @@ export default function CountriesPage() {
   }, [authLoading, isAuthenticated, navigate]);
 
   // استلام الدول من الخادم
-  const { data: countries = [], isLoading, isError, refetch } = useQuery<Country[]>({
+  const { data: countriesResponse, isLoading, isError, refetch } = useQuery<{ success?: boolean, data?: Country[] } | Country[]>({
     queryKey: ['/api/countries'],
     queryFn: async () => {
       const response = await fetch('/api/countries');
@@ -64,6 +64,11 @@ export default function CountriesPage() {
     },
     enabled: isAuthenticated
   });
+  
+  // تحديد ما إذا كانت البيانات تستخدم الصيغة الجديدة وجلب المصفوفة المناسبة
+  const countries = Array.isArray(countriesResponse) 
+    ? countriesResponse 
+    : countriesResponse?.data || [];
 
   // إضافة دولة جديدة
   const addMutation = useMutation({
