@@ -85,10 +85,18 @@ export const scholarships = pgTable("scholarships", {
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
 
-export const insertScholarshipSchema = createInsertSchema(scholarships).omit({
+// إنشاء مخطط Zod الأساسي
+const baseScholarshipSchema = createInsertSchema(scholarships).omit({
   id: true,
   createdAt: true,
   updatedAt: true
+});
+
+// تعريف مخطط خاص للتواريخ للسماح بإدخال نصوص أو كائنات تاريخ
+export const insertScholarshipSchema = baseScholarshipSchema.extend({
+  // السماح بإدخال التواريخ كنصوص أو كائنات تاريخ أو null
+  startDate: z.union([z.date(), z.string(), z.null()]).optional(),
+  endDate: z.union([z.date(), z.string(), z.null()]).optional()
 });
 
 // Blog Posts Table
@@ -342,11 +350,11 @@ export const insertMenuSchema = createInsertSchema(menus).omit({
   updatedAt: true
 });
 
-// Menu Items Table
+// Menu Items Table - تعريف الجدول أولاً بدون العلاقة الذاتية
 export const menuItems = pgTable("menu_items", {
   id: serial("id").primaryKey(),
   menuId: integer("menu_id").references(() => menus.id).notNull(),
-  parentId: integer("parent_id").references(() => menuItems.id),
+  parentId: integer("parent_id"), // سنضيف المرجع لاحقًا
   title: text("title").notNull(),
   type: menuItemTypeEnum("type").notNull(),
   url: text("url"), // Used for direct links

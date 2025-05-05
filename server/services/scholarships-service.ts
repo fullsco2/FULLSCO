@@ -34,6 +34,15 @@ export class ScholarshipsService {
       scholarshipData.slug = this.generateSlug(scholarshipData.title);
     }
 
+    // معالجة حقول التاريخ - تحويل النصوص إلى كائنات تاريخ
+    if (scholarshipData.startDate && typeof scholarshipData.startDate === 'string') {
+      scholarshipData.startDate = new Date(scholarshipData.startDate);
+    }
+
+    if (scholarshipData.endDate && typeof scholarshipData.endDate === 'string') {
+      scholarshipData.endDate = new Date(scholarshipData.endDate);
+    }
+
     return this.repository.createScholarship(scholarshipData);
   }
 
@@ -50,6 +59,15 @@ export class ScholarshipsService {
     // إنشاء اسم مستعار إذا تم تغيير العنوان ولم يتم توفير اسم مستعار جديد
     if (scholarshipData.title && !scholarshipData.slug) {
       scholarshipData.slug = this.generateSlug(scholarshipData.title);
+    }
+
+    // معالجة حقول التاريخ - تحويل النصوص إلى كائنات تاريخ
+    if (scholarshipData.startDate && typeof scholarshipData.startDate === 'string') {
+      scholarshipData.startDate = new Date(scholarshipData.startDate);
+    }
+
+    if (scholarshipData.endDate && typeof scholarshipData.endDate === 'string') {
+      scholarshipData.endDate = new Date(scholarshipData.endDate);
     }
 
     return this.repository.updateScholarship(id, scholarshipData);
