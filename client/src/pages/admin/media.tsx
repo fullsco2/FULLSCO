@@ -282,6 +282,7 @@ export default function MediaManagementPage() {
     const files = event.target.files;
     if (files && files.length > 0) {
       uploadForm.setValue('file', files[0]);
+      console.log('تم اختيار الملف:', files[0].name);
     }
   };
 
@@ -291,6 +292,12 @@ export default function MediaManagementPage() {
       toast({ title: 'خطأ!', description: 'يرجى اختيار ملف للرفع', variant: 'destructive' });
       return;
     }
+    
+    console.log('المعلومات المرسلة للرفع:', {
+      ملف: data.file.name,
+      عنوان: data.title,
+      وصف: data.alt
+    });
     
     const formData = new FormData();
     formData.append('file', data.file);
