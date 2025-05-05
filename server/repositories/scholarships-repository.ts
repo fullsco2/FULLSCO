@@ -155,21 +155,35 @@ export class ScholarshipsRepository {
    */
   async incrementScholarshipViews(id: number): Promise<boolean> {
     try {
-      const scholarship = await this.getScholarshipById(id);
-      if (!scholarship) {
+      // في بعض الحالات، جدول المنح الدراسية قد لا يحتوي على حقل views
+      // يجب التحقق من وجود الحقل أولاً قبل محاولة التحديث
+      
+      // التحقق مما إذا كان الحقل موجودًا في الجدول
+      try {
+        // محاولة الحصول على المنحة أولاً
+        const scholarship = await this.getScholarshipById(id);
+        if (!scholarship) {
+          return false;
+        }
+        
+        // حساب عدد المشاهدات الحالي (إذا كان الحقل موجودًا)
+        const currentViews = typeof scholarship.views === 'number' ? scholarship.views : 0;
+        
+        // تنفيذ استعلام التحديث
+        await db.execute(
+          `UPDATE scholarships SET views = $1 WHERE id = $2`,
+          [currentViews + 1, id]
+        );
+        
+        return true;
+      } catch (viewsError) {
+        // إذا كان الخطأ بسبب عدم وجود حقل views، قم بتسجيل الخطأ فقط ولا تقم برميه
+        console.warn("لا يمكن تحديث عدد المشاهدات، قد يكون الحقل غير موجود:", viewsError);
         return false;
       }
-
-      const currentViews = scholarship.views || 0;
-      const [updated] = await db.update(scholarships)
-        .set({ views: currentViews + 1 })
-        .where(eq(scholarships.id, id))
-        .returning();
-      
-      return !!updated;
     } catch (error) {
       console.error("Error in incrementScholarshipViews:", error);
-      throw error;
+      return false; // نعيد false بدلاً من رمي الخطأ لمنع توقف التطبيق
     }
   }
 }

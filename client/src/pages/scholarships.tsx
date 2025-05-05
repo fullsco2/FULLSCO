@@ -77,7 +77,7 @@ const Scholarships = () => {
   }, [location]);
 
   // جلب المنح الدراسية مع الفلترة
-  const { data: scholarships, isLoading: isLoadingScholarships } = useQuery<Scholarship[]>({
+  const { data, isLoading: isLoadingScholarships } = useQuery({
     queryKey: ['/api/scholarships', filters],
     queryFn: async () => {
       const queryParams = new URLSearchParams();
@@ -88,9 +88,13 @@ const Scholarships = () => {
       
       const response = await fetch(`/api/scholarships?${queryParams.toString()}`);
       if (!response.ok) throw new Error('فشل في جلب المنح الدراسية');
-      return response.json();
+      const result = await response.json();
+      return result;
     }
   });
+  
+  // استخراج قائمة المنح من الاستجابة
+  const scholarships = data?.success ? data.data : [];
 
   // جلب خيارات الفلاتر
   const { data: countries } = useQuery<Country[]>({
@@ -315,7 +319,7 @@ const Scholarships = () => {
                 <div>
                   <p className="text-sm text-gray-500">ممولة بالكامل</p>
                   <p className="text-lg font-bold">
-                    {scholarships?.filter(s => s.isFullyFunded).length || 0}
+                    {Array.isArray(scholarships) ? scholarships.filter(s => s.isFullyFunded).length : 0}
                   </p>
                 </div>
               </CardContent>
