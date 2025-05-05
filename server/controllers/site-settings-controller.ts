@@ -26,7 +26,7 @@ export class SiteSettingsController {
         return;
       }
       
-      res.json(settings);
+      res.json(successResponse(settings, 'تم جلب إعدادات الموقع بنجاح'));
     } catch (error) {
       handleException(res, error);
     }
