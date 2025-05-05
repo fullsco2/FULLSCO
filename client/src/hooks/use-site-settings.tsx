@@ -39,11 +39,11 @@ const RTL_STORAGE_KEY = 'rtl_direction';
 export const SiteSettingsProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   // استعلام للحصول على إعدادات الموقع من الخادم
   const { 
-    data: settings, 
+    data: settingsResponse, 
     isLoading, 
     isError, 
     refetch 
-  } = useQuery<SiteSettings>({
+  } = useQuery<{success: boolean, message: string, data: SiteSettings}>({
     queryKey: ['/api/site-settings'],
     queryFn: async () => {
       try {
@@ -57,8 +57,8 @@ export const SiteSettingsProvider: React.FC<{children: React.ReactNode}> = ({ ch
     },
   });
   
-  // معالجة القيمة من السيرفر
-  const siteSettings = settings || null;
+  // استخراج بيانات الإعدادات من الاستجابة
+  const siteSettings = settingsResponse?.data || null;
 
   // وظيفة لتغيير اتجاه RTL
   const setRtlDirection = (value: boolean) => {
