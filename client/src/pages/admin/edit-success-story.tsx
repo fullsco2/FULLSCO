@@ -88,7 +88,7 @@ const EditSuccessStory = () => {
   }, [authLoading, isAuthenticated, navigate]);
 
   // جلب بيانات قصة النجاح
-  const { data: successStory, isLoading: isStoryLoading, isError: isStoryError } = useQuery<SuccessStory>({
+  const { data: successStoryResponse, isLoading: isStoryLoading, isError: isStoryError } = useQuery<{ success: boolean, data: SuccessStory } | SuccessStory>({
     queryKey: [`/api/success-stories/${storyId}`],
     queryFn: async () => {
       const response = await fetch(`/api/success-stories/${storyId}`, {
@@ -103,6 +103,11 @@ const EditSuccessStory = () => {
     },
     enabled: isAuthenticated && !isNaN(storyId),
   });
+  
+  // استخراج بيانات قصة النجاح من الاستجابة
+  const successStory = (successStoryResponse && 'data' in successStoryResponse) 
+    ? successStoryResponse.data 
+    : successStoryResponse;
 
   // جلب المنح الدراسية للقائمة المنسدلة
   const { data: scholarshipsResponse } = useQuery<{ success: boolean, data: Scholarship[] } | Scholarship[]>({

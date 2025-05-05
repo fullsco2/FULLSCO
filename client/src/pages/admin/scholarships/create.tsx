@@ -174,7 +174,7 @@ export default function CreateScholarshipPage() {
   };
 
   // استعلام عن بيانات المنحة الحالية عند التعديل
-  const { data: scholarshipData, isLoading: isLoadingScholarship } = useQuery<ScholarshipData>({
+  const { data: scholarshipResponse, isLoading: isLoadingScholarship } = useQuery<{ success: boolean, data: ScholarshipData } | ScholarshipData>({
     queryKey: ['/api/scholarships', scholarshipId],
     queryFn: async () => {
       if (!scholarshipId) return Promise.reject('No scholarship ID provided');
@@ -418,6 +418,11 @@ export default function CreateScholarshipPage() {
     </div>
   );
   
+  // استخراج بيانات المنحة من الاستجابة
+  const scholarshipData = (scholarshipResponse && 'data' in scholarshipResponse) 
+    ? scholarshipResponse.data 
+    : scholarshipResponse;
+
   // تحميل بيانات المنحة عند التحرير
   useEffect(() => {
     if (scholarshipData && isEditMode) {
