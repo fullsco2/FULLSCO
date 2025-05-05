@@ -46,6 +46,9 @@ export function registerMenusRoutes(app: Express, apiPrefix: string = '/api'): v
   // الحصول على جميع عناصر القائمة التي تنتمي إلى قائمة معينة - متاح فقط للمسؤولين
   app.get(`${apiPrefix}/menus/:menuId/items`, isAdmin, (req, res) => controller.listMenuItems(req, res));
   
+  // الحصول على هيكل كامل لعناصر القائمة مع التفاصيل - متاح فقط للمسؤولين
+  app.get(`${apiPrefix}/menu-items-with-details/menu/:menuId`, isAdmin, (req, res) => controller.getAllMenuItemsWithDetails(req, res));
+  
   // الحصول على هيكل كامل لعناصر القائمة - متاح فقط للمسؤولين
   app.get(`${apiPrefix}/menus/:menuId/structure`, isAdmin, (req, res) => controller.getAllMenuItemsWithDetails(req, res));
   
