@@ -1,22 +1,26 @@
-import { eq } from "drizzle-orm";
-import { db } from "../db";
-import { categories, Category, InsertCategory } from "@shared/schema";
+import { db } from '../../db/index';
+import { 
+  categories,
+  type Category, 
+  type InsertCategory 
+} from '@shared/schema';
+import { eq } from 'drizzle-orm';
 
 /**
- * مستودع للتعامل مع عمليات الفئات في قاعدة البيانات
+ * مستودع البيانات للتعامل مع الفئات في قاعدة البيانات
  */
 export class CategoriesRepository {
   /**
    * الحصول على قائمة بجميع الفئات
    * @returns قائمة الفئات
    */
-  async listCategories(): Promise<Category[]> {
+  async findAll(): Promise<Category[]> {
     try {
       return await db.query.categories.findMany({
-        orderBy: (categories, { asc }) => [asc(categories.name)]
+        orderBy: categories.name
       });
     } catch (error) {
-      console.error("Error in listCategories repository:", error);
+      console.error("Error in findAll categories repository method:", error);
       throw error;
     }
   }
@@ -24,16 +28,15 @@ export class CategoriesRepository {
   /**
    * الحصول على فئة محددة بواسطة المعرف
    * @param id معرف الفئة
-   * @returns بيانات الفئة أو null في حالة عدم وجودها
+   * @returns بيانات الفئة أو undefined في حالة عدم وجودها
    */
-  async getCategoryById(id: number): Promise<Category | null> {
+  async findById(id: number): Promise<Category | undefined> {
     try {
-      const result = await db.query.categories.findFirst({
+      return await db.query.categories.findFirst({
         where: eq(categories.id, id)
       });
-      return result || null;
     } catch (error) {
-      console.error(`Error in getCategoryById repository for id ${id}:`, error);
+      console.error(`Error in findById categories repository method for id ${id}:`, error);
       throw error;
     }
   }
@@ -41,31 +44,30 @@ export class CategoriesRepository {
   /**
    * الحصول على فئة بواسطة الاسم المستعار (slug)
    * @param slug الاسم المستعار للفئة
-   * @returns بيانات الفئة أو null في حالة عدم وجودها
+   * @returns بيانات الفئة أو undefined في حالة عدم وجودها
    */
-  async getCategoryBySlug(slug: string): Promise<Category | null> {
+  async findBySlug(slug: string): Promise<Category | undefined> {
     try {
-      const result = await db.query.categories.findFirst({
+      return await db.query.categories.findFirst({
         where: eq(categories.slug, slug)
       });
-      return result || null;
     } catch (error) {
-      console.error(`Error in getCategoryBySlug repository for slug ${slug}:`, error);
+      console.error(`Error in findBySlug categories repository method for slug ${slug}:`, error);
       throw error;
     }
   }
 
   /**
    * إنشاء فئة جديدة
-   * @param data بيانات الفئة
+   * @param data بيانات الفئة الجديدة
    * @returns الفئة التي تم إنشاؤها
    */
-  async createCategory(data: InsertCategory): Promise<Category> {
+  async create(data: InsertCategory): Promise<Category> {
     try {
-      const [category] = await db.insert(categories).values(data).returning();
-      return category;
+      const result = await db.insert(categories).values(data).returning();
+      return result[0];
     } catch (error) {
-      console.error("Error in createCategory repository:", error);
+      console.error("Error in create categories repository method:", error);
       throw error;
     }
   }
@@ -74,17 +76,24 @@ export class CategoriesRepository {
    * تحديث فئة موجودة
    * @param id معرف الفئة
    * @param data البيانات المراد تحديثها
-   * @returns الفئة بعد التحديث أو null في حالة عدم وجودها
+   * @returns الفئة بعد التحديث أو undefined في حالة عدم وجودها
    */
-  async updateCategory(id: number, data: Partial<InsertCategory>): Promise<Category | null> {
+  async update(id: number, data: Partial<InsertCategory>): Promise<Category | undefined> {
     try {
-      const [category] = await db.update(categories)
+      // التحقق من وجود الفئة قبل التحديث
+      const existing = await this.findById(id);
+      if (!existing) {
+        return undefined;
+      }
+
+      const result = await db.update(categories)
         .set(data)
         .where(eq(categories.id, id))
         .returning();
-      return category || null;
+      
+      return result[0];
     } catch (error) {
-      console.error(`Error in updateCategory repository for id ${id}:`, error);
+      console.error(`Error in update categories repository method for id ${id}:`, error);
       throw error;
     }
   }
@@ -94,14 +103,18 @@ export class CategoriesRepository {
    * @param id معرف الفئة
    * @returns true إذا تم الحذف بنجاح، false إذا لم يتم العثور على الفئة
    */
-  async deleteCategory(id: number): Promise<boolean> {
+  async delete(id: number): Promise<boolean> {
     try {
-      const result = await db.delete(categories)
-        .where(eq(categories.id, id))
-        .returning({ id: categories.id });
-      return result.length > 0;
+      // التحقق من وجود الفئة قبل الحذف
+      const existing = await this.findById(id);
+      if (!existing) {
+        return false;
+      }
+
+      await db.delete(categories).where(eq(categories.id, id));
+      return true;
     } catch (error) {
-      console.error(`Error in deleteCategory repository for id ${id}:`, error);
+      console.error(`Error in delete categories repository method for id ${id}:`, error);
       throw error;
     }
   }
