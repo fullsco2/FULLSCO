@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { setupVite, serveStatic, log } from "./vite";
 import { AppConfig } from "./config/app-config";
+import path from "path";
 
 // استيراد مسارات واجهة برمجة التطبيق
 import { registerRoutes } from "./routes";
@@ -12,6 +13,9 @@ app.use(express.urlencoded({ extended: false }));
 
 // إعداد جلسات المستخدم والمصادقة
 setupSessionMiddleware(app);
+
+// تخديم مجلد التحميلات كمجلد ساكن
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // وسيط تسجيل طلبات واجهة برمجة التطبيق للتصحيح
 app.use((req, res, next) => {
@@ -68,7 +72,7 @@ app.use((req, res, next) => {
   // تشغيل الخادم على المنفذ المحدد
   const port = AppConfig.server.port;
   
-  server.listen(port, '0.0.0.0', () => {
+  server.listen(port, () => {
     log(`serving on port ${port}`);
   });
 })();

@@ -1,57 +1,63 @@
-import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
-  }
+/**
+ * Combines class names with Tailwind CSS classes
+ */
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
 }
 
-export async function apiRequest(
-  method: string,
-  url: string,
-  data?: unknown | undefined,
-): Promise<Response> {
-  const res = await fetch(url, {
-    method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
-  });
-
-  await throwIfResNotOk(res);
-  return res;
+/**
+ * Converts a string to slug format
+ */
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')  // Remove special chars
+    .replace(/\s+/g, '-')      // Replace spaces with hyphens
+    .replace(/--+/g, '-')      // Replace multiple hyphens with one
+    .trim();                   // Trim whitespace
 }
 
-type UnauthorizedBehavior = "returnNull" | "throw";
-export const getQueryFn: <T>(options: {
-  on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
-  ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
-      credentials: "include",
-    });
+/**
+ * Format date string to readable format
+ */
+export function formatDate(dateString: string | Date): string {
+  const date = typeof dateString === 'string' 
+    ? new Date(dateString) 
+    : dateString;
+  
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  }).format(date);
+}
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
-    }
+/**
+ * Truncate text to a specified length
+ */
+export function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength) + '...';
+}
 
-    await throwIfResNotOk(res);
-    return await res.json();
-  };
+/**
+ * Format number with comma separators
+ */
+export function formatNumber(number: number): string {
+  return new Intl.NumberFormat('en-US').format(number);
+}
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: false,
-      refetchOnWindowFocus: true,
-      staleTime: 0, // تعطيل التخزين المؤقت لتحديث البيانات بشكل فوري
-      retry: false,
-    },
-    mutations: {
-      retry: false,
-    },
-  },
-});
+/**
+ * Get the initials from a name
+ */
+export function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map(part => part.charAt(0))
+    .join('')
+    .toUpperCase()
+    .substring(0, 2);
+}
