@@ -810,19 +810,20 @@ export default function MenusPage() {
                             {...provided.droppableProps}
                             ref={provided.innerRef}
                           >
-                            {organizeMenuItems(activeMenuItems).map((item, index) => (
-                              <Draggable
-                                key={`item-${item.id}`}
-                                draggableId={`item-${item.id}`}
-                                index={index}
-                              >
-                                {(provided) => (
-                                  <div
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                  >
-                                    <Card className="border-primary/20">
-                                      <CardContent className="p-3">
+                            {organizeMenuItems(activeMenuItems).length > 0 ? (
+                              organizeMenuItems(activeMenuItems).map((item, index) => (
+                                <Draggable
+                                  key={`item-${item.id}`}
+                                  draggableId={`item-${item.id}`}
+                                  index={index}
+                                >
+                                  {(provided) => (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                    >
+                                      <Card className="border-primary/20">
+                                        <CardContent className="p-3">
                                         <div className="flex items-center justify-between">
                                           <div className="flex items-center">
                                             <div
@@ -930,12 +931,17 @@ export default function MenusPage() {
                                             </div>
                                           </div>
                                         )}
-                                      </CardContent>
-                                    </Card>
-                                  </div>
-                                )}
-                              </Draggable>
-                            ))}
+                                        </CardContent>
+                                      </Card>
+                                    </div>
+                                  )}
+                                </Draggable>
+                              ))
+                            ) : (
+                              <div className="text-center p-4 text-muted-foreground">
+                                لا توجد عناصر في هذه القائمة
+                              </div>
+                            )}
                             {provided.placeholder}
                           </div>
                         )}
