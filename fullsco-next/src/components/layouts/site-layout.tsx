@@ -22,9 +22,10 @@ interface SiteSettings {
 
 interface SiteLayoutProps {
   children: ReactNode;
+  showFooter?: boolean;
 }
 
-export default function SiteLayout({ children }: SiteLayoutProps) {
+export default function SiteLayout({ children, showFooter = true }: SiteLayoutProps) {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -67,7 +68,7 @@ export default function SiteLayout({ children }: SiteLayoutProps) {
       <main className="flex-grow">
         {children}
       </main>
-      <Footer settings={settings || {}} />
+      {showFooter && <Footer settings={settings || {}} />}
     </div>
   );
 }
