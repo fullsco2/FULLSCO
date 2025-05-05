@@ -64,6 +64,25 @@ export function useMenuByLocation(location: 'header' | 'footer' | 'sidebar' | 'm
   });
 }
 
+// استجابة API لهيكل القائمة
+interface MenuStructureResponse {
+  success: boolean;
+  data: {
+    menu: {
+      id: number;
+      name: string;
+      slug: string;
+      location: 'header' | 'footer' | 'sidebar' | 'mobile';
+      isActive: boolean;
+      description: string | null;
+      createdAt: string;
+      updatedAt: string;
+    };
+    items: MenuItem[];
+  };
+  message?: string;
+}
+
 export function useMenuStructure(location: 'header' | 'footer' | 'sidebar' | 'mobile') {
   // استخدام تخزين مؤقت لمنع إعادة التحميل غير الضرورية
   return useQuery<MenuStructure>({
@@ -77,9 +96,25 @@ export function useMenuStructure(location: 'header' | 'footer' | 'sidebar' | 'mo
       if (!response.ok) {
         throw new Error(`Error fetching menu structure for ${location}`);
       }
-      const data = await response.json();
-      console.log(`Menu structure for ${location}:`, data);
-      return data;
+      
+      const responseData = await response.json() as MenuStructureResponse;
+      console.log(`Menu structure for ${location}:`, responseData);
+      
+      // التحقق من وجود البيانات
+      if (responseData.success && responseData.data) {
+        // تحويل هيكل البيانات إلى الشكل المتوقع
+        const menuStructure: MenuStructure = {
+          id: responseData.data.menu.id,
+          name: responseData.data.menu.name,
+          slug: responseData.data.menu.slug,
+          location: responseData.data.menu.location,
+          items: responseData.data.items
+        };
+        
+        return menuStructure;
+      } else {
+        throw new Error(`Invalid response data for menu structure ${location}`);
+      }
     },
     refetchOnWindowFocus: false, // تجنب إعادة التحميل عند التركيز
     staleTime: 300000, // البيانات تبقى صالحة لمدة 5 دقائق (300000 مللي ثانية)

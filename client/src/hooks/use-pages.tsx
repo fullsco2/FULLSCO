@@ -20,6 +20,13 @@ interface UsePagesOptions {
   enabled?: boolean;
 }
 
+// استجابة API للصفحات
+interface PagesResponse {
+  success: boolean;
+  data: Page[];
+  message?: string;
+}
+
 export function usePages(options: UsePagesOptions = {}) {
   const { showInHeader, showInFooter, enabled = true } = options;
   
@@ -50,10 +57,26 @@ export function usePages(options: UsePagesOptions = {}) {
         throw new Error(errorData.message || 'فشل في جلب الصفحات');
       }
       
-      return response.json();
+      const responseData = await response.json() as PagesResponse;
+      
+      // التأكد من أن البيانات الراجعة صحيحة ومصفوفة
+      if (responseData.success && Array.isArray(responseData.data)) {
+        return responseData.data;
+      } else {
+        // إذا لم تكن البيانات في الشكل المتوقع، نرجع مصفوفة فارغة
+        console.error('استجابة API للصفحات ليست بالشكل المتوقع:', responseData);
+        return [];
+      }
     },
     enabled
   });
+}
+
+// استجابة API للصفحة الواحدة
+interface PageResponse {
+  success: boolean;
+  data: Page;
+  message?: string;
 }
 
 export function usePage(slug: string, enabled = true) {
@@ -71,7 +94,14 @@ export function usePage(slug: string, enabled = true) {
         throw new Error(errorData.message || 'فشل في جلب الصفحة');
       }
       
-      return response.json();
+      const responseData = await response.json() as PageResponse;
+      
+      // التحقق من وجود البيانات
+      if (responseData.success && responseData.data) {
+        return responseData.data;
+      } else {
+        throw new Error('بيانات الصفحة غير موجودة أو غير صالحة');
+      }
     },
     enabled: enabled && !!slug
   });
@@ -95,7 +125,14 @@ export function usePageById(id: number | string | null | undefined, enabled = tr
         throw new Error(errorData.message || 'فشل في جلب الصفحة');
       }
       
-      return response.json();
+      const responseData = await response.json() as PageResponse;
+      
+      // التحقق من وجود البيانات
+      if (responseData.success && responseData.data) {
+        return responseData.data;
+      } else {
+        throw new Error('بيانات الصفحة غير موجودة أو غير صالحة');
+      }
     },
     enabled: enabled && pageId !== null && !isNaN(pageId)
   });
