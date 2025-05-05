@@ -578,10 +578,11 @@ export function registerLegacyRoutes(app: Express, migratedModules: string[] = [
         if (!scholarship) {
           return res.status(404).json({ message: "Scholarship not found" });
         }
-        res.json(scholarship);
+        // استخدام التنسيق الموحد للاستجابة
+        res.json({ success: true, data: scholarship });
       } catch (error) {
         console.error(`Error fetching scholarship with ID ${req.params.id}:`, error);
-        res.status(500).json({ message: "Failed to fetch scholarship", error: (error as Error).message });
+        res.status(500).json({ success: false, message: "Failed to fetch scholarship", error: (error as Error).message });
       }
     });
 

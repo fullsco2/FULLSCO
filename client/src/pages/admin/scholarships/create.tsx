@@ -419,9 +419,9 @@ export default function CreateScholarshipPage() {
   );
   
   // استخراج بيانات المنحة من الاستجابة
-  const scholarshipData = (scholarshipResponse && 'data' in scholarshipResponse) 
-    ? scholarshipResponse.data 
-    : scholarshipResponse;
+  const scholarshipData = scholarshipResponse ? 
+    (('data' in scholarshipResponse) ? scholarshipResponse.data : scholarshipResponse) 
+    : null;
 
   // تحميل بيانات المنحة عند التحرير
   useEffect(() => {
