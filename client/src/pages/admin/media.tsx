@@ -80,7 +80,9 @@ export default function MediaManagementPage() {
           const errorData = await response.json();
           throw new Error(errorData.message || 'فشل في استلام ملفات الوسائط');
         }
-        return response.json();
+        const result = await response.json();
+        // استخراج البيانات من كائن الاستجابة الذي يتبع نمط { success: true, data: [...] }
+        return result.data || [];
       } catch (error) {
         console.error('Error fetching media files:', error);
         throw error;
@@ -100,7 +102,8 @@ export default function MediaManagementPage() {
         const errorData = await response.json();
         throw new Error(errorData.message || 'فشل في رفع الملف');
       }
-      return response.json();
+      const result = await response.json();
+      return result.data || result; // استخراج البيانات من استجابة API
     },
     onSuccess: (newFile) => {
       queryClient.setQueryData(['/api/media'], (old: MediaFile[] | undefined) => 
@@ -128,7 +131,8 @@ export default function MediaManagementPage() {
         throw new Error(errorData.message || 'فشل في تحديث معلومات الملف');
       }
       
-      return response.json();
+      const result = await response.json();
+      return result.data || result; // استخراج البيانات من استجابة API
     },
     onSuccess: (updatedFile) => {
       queryClient.setQueryData(['/api/media'], (old: MediaFile[] | undefined) => 
