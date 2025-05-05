@@ -49,7 +49,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     'categories',     // التصنيفات
     'levels',         // المستويات الدراسية
     'countries',      // الدول
-    'menus'           // القوائم
+    'menus',          // القوائم
+    'pages',          // الصفحات
+    'subscribers',    // المشتركين
+    'seo-settings',   // إعدادات SEO
+    'media'           // مكتبة الوسائط
   ];
 
   console.log('🚀 بدء تسجيل المسارات...');

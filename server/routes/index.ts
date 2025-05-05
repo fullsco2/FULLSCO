@@ -11,6 +11,10 @@ import categoriesRoutes from './categories-routes';
 import levelsRoutes from './levels-routes';
 import countriesRoutes from './countries-routes';
 import { registerMenusRoutes } from './menus-routes';
+import { registerPagesRoutes } from './pages-routes';
+import { registerSubscribersRoutes } from './subscribers-routes';
+import { registerSeoSettingsRoutes } from './seo-settings-routes';
+import { registerMediaRoutes } from './media-routes';
 
 /**
  * تسجيل جميع مسارات API
@@ -51,4 +55,16 @@ export function registerApiRoutes(app: Express, apiPrefix: string): void {
   
   // تسجيل مسارات القوائم
   registerMenusRoutes(app, apiPrefix);
+  
+  // تسجيل مسارات الصفحات
+  registerPagesRoutes(app, apiPrefix);
+  
+  // تسجيل مسارات المشتركين في النشرة البريدية
+  registerSubscribersRoutes(app, apiPrefix);
+  
+  // تسجيل مسارات إعدادات SEO
+  registerSeoSettingsRoutes(app, apiPrefix);
+  
+  // تسجيل مسارات مكتبة الوسائط
+  registerMediaRoutes(app, apiPrefix);
 }

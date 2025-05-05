@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { SeoSettingsRepository } from "../repositories/seo-settings-repository";
-import { SeoSetting, InsertSeoSetting, insertSeoSettingSchema } from "@shared/schema";
+import { SeoSetting, InsertSeoSetting, insertSeoSettingsSchema } from "@shared/schema";
 
 /**
  * خدمة إعدادات SEO
@@ -30,9 +30,9 @@ export class SeoSettingsService {
   /**
    * إنشاء إعداد SEO جديد
    */
-  async createSeoSetting(seoSettingData: z.infer<typeof insertSeoSettingSchema>): Promise<SeoSetting> {
+  async createSeoSetting(seoSettingData: z.infer<typeof insertSeoSettingsSchema>): Promise<SeoSetting> {
     // التحقق من صحة البيانات
-    const validatedData = insertSeoSettingSchema.parse(seoSettingData);
+    const validatedData = insertSeoSettingsSchema.parse(seoSettingData);
     
     // التحقق مما إذا كان هناك إعداد SEO بنفس المسار
     const existingSetting = await this.repository.getSeoSettingByPath(validatedData.pagePath);
@@ -47,7 +47,7 @@ export class SeoSettingsService {
   /**
    * تحديث إعداد SEO موجود
    */
-  async updateSeoSetting(id: number, seoSettingData: Partial<z.infer<typeof insertSeoSettingSchema>>): Promise<SeoSetting | undefined> {
+  async updateSeoSetting(id: number, seoSettingData: Partial<z.infer<typeof insertSeoSettingsSchema>>): Promise<SeoSetting | undefined> {
     // التحقق من وجود إعداد SEO
     const existingSetting = await this.repository.getSeoSetting(id);
     if (!existingSetting) {
@@ -55,7 +55,7 @@ export class SeoSettingsService {
     }
 
     // التحقق من صحة البيانات
-    const validatedData = insertSeoSettingSchema.partial().parse(seoSettingData);
+    const validatedData = insertSeoSettingsSchema.partial().parse(seoSettingData);
     
     // التحقق مما إذا كان هناك تغيير في المسار وهناك إعداد آخر بنفس المسار الجديد
     if (validatedData.pagePath && validatedData.pagePath !== existingSetting.pagePath) {
