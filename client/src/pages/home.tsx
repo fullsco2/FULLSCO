@@ -13,9 +13,12 @@ import { SiteSetting } from '@shared/schema';
 
 const Home = () => {
   // الحصول على إعدادات الموقع
-  const { data: siteSettings, isLoading, error } = useQuery<SiteSetting>({
+  const { data: siteSettingsResponse, isLoading, error } = useQuery<{ success: boolean, data: SiteSetting }>({
     queryKey: ['/api/site-settings'],
   });
+  
+  // استخراج إعدادات الموقع من الاستجابة
+  const siteSettings = siteSettingsResponse?.data;
   
   console.log('Site settings loaded:', siteSettings);
   console.log('Show hero section:', siteSettings?.showHeroSection);

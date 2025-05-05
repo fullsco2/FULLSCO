@@ -11,13 +11,17 @@ const FeaturedScholarships = () => {
     queryKey: ['/api/scholarships/featured'],
   });
 
-  const { data: levels } = useQuery<Level[]>({
+  const { data: levelsResponse } = useQuery<{ success: boolean, data: Level[] }>({
     queryKey: ['/api/levels'],
   });
+  
+  const levels = levelsResponse?.data || [];
 
-  const { data: countries } = useQuery<Country[]>({
+  const { data: countriesResponse } = useQuery<{ success: boolean, data: Country[] }>({
     queryKey: ['/api/countries'],
   });
+  
+  const countries = countriesResponse?.data || [];
 
   const getCountryName = (countryId: number | null | undefined) => {
     if (!countryId || !countries) return '';
