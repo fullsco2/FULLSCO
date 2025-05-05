@@ -126,8 +126,28 @@ export class ScholarshipsController {
    */
   async createScholarship(req: Request, res: Response): Promise<void> {
     try {
+      // معالجة حقول التاريخ قبل التحقق من صحة البيانات 
+      const scholarshipData = {...req.body};
+      
+      // تحويل النصوص إلى كائنات تاريخ إذا كانت موجودة
+      if (scholarshipData.startDate && typeof scholarshipData.startDate === 'string') {
+        try {
+          scholarshipData.startDate = new Date(scholarshipData.startDate);
+        } catch (e) {
+          scholarshipData.startDate = null;
+        }
+      }
+      
+      if (scholarshipData.endDate && typeof scholarshipData.endDate === 'string') {
+        try {
+          scholarshipData.endDate = new Date(scholarshipData.endDate);
+        } catch (e) {
+          scholarshipData.endDate = null;
+        }
+      }
+      
       // التحقق من صحة البيانات باستخدام Zod
-      const validatedData = insertScholarshipSchema.parse(req.body);
+      const validatedData = insertScholarshipSchema.parse(scholarshipData);
       const newScholarship = await this.service.createScholarship(validatedData);
       
       res.status(201).json(successResponse(
@@ -173,8 +193,28 @@ export class ScholarshipsController {
         return;
       }
 
+      // معالجة حقول التاريخ قبل التحقق من صحة البيانات 
+      const scholarshipData = {...req.body};
+      
+      // تحويل النصوص إلى كائنات تاريخ إذا كانت موجودة
+      if (scholarshipData.startDate && typeof scholarshipData.startDate === 'string') {
+        try {
+          scholarshipData.startDate = new Date(scholarshipData.startDate);
+        } catch (e) {
+          scholarshipData.startDate = null;
+        }
+      }
+      
+      if (scholarshipData.endDate && typeof scholarshipData.endDate === 'string') {
+        try {
+          scholarshipData.endDate = new Date(scholarshipData.endDate);
+        } catch (e) {
+          scholarshipData.endDate = null;
+        }
+      }
+      
       // التحقق من صحة البيانات باستخدام Zod
-      const validatedData = insertScholarshipSchema.partial().parse(req.body);
+      const validatedData = insertScholarshipSchema.partial().parse(scholarshipData);
       const updatedScholarship = await this.service.updateScholarship(id, validatedData);
       
       res.json(successResponse(
