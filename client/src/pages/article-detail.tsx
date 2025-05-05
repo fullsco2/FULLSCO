@@ -37,12 +37,12 @@ const ArticleDetail = () => {
   // استعلام عن تصنيفات المقال
   const { data: postTags = [] } = useQuery<any[]>({
     queryKey: [`/api/posts/${post?.id}/tags`],
-    enabled: !!post,
+    enabled: !!post?.id, // تأكد من وجود معرف المقال قبل جلب التصنيفات
   });
 
-  const { data: relatedPosts } = useQuery<Post[]>({
+  const { data: relatedPosts = [] } = useQuery<Post[]>({
     queryKey: ['/api/posts', { limit: 3 }],
-    enabled: !!post,
+    enabled: !!post?.id, // تأكد من وجود معرف المقال قبل جلب المقالات ذات الصلة
   });
 
   // Increment view count (this happens automatically on the API side)
