@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { PartnersService } from '../services/partners-service.ts';
-import { insertPartnerSchema } from '../../shared/schema';
-import { handleException, successResponse } from '../utils/api-helper.ts';
+import { PartnersService } from '../services/partners-service';
+import { insertPartnerSchema } from '@shared/schema';
+import { handleException, successResponse } from '../utils/api-helper';
 
 export class PartnersController {
   private service: PartnersService;

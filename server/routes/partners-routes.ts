@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { PartnersController } from '../controllers/partners-controller.ts';
-import { isAdmin } from '../middlewares/auth-middleware.ts';
+import { PartnersController } from '../controllers/partners-controller';
+import { isAdmin } from '../middlewares/auth-middleware';
 
 const router = Router();
 const controller = new PartnersController();
