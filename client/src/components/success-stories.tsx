@@ -6,10 +6,18 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { SuccessStory } from '@shared/schema';
 
+interface SuccessStoriesResponse {
+  success: boolean;
+  data: SuccessStory[];
+}
+
 const SuccessStories = () => {
-  const { data: stories, isLoading, error } = useQuery<SuccessStory[]>({
+  const { data, isLoading, error } = useQuery<SuccessStoriesResponse>({
     queryKey: ['/api/success-stories'],
   });
+  
+  // Extract the actual stories array from the response
+  const stories = data?.data || [];
 
   if (isLoading) {
     return (

@@ -10,27 +10,36 @@ type PostsContextType = {
   error: Error | null;
 };
 
+// نوع بيانات استجابة API للمقالات
+interface PostsResponse {
+  success: boolean;
+  data: Post[];
+}
+
 // شرح: تعريف نوع بيانات معلومات المقالات التي سنوفرها في المزود
 export const PostsContext = createContext<PostsContextType | null>(null);
 
 export function PostsProvider({ children }: { children: ReactNode }) {
   // جلب جميع المقالات
   const {
-    data: allPosts = [],
+    data,
     error: postsError,
     isLoading: postsLoading,
-  } = useQuery<Post[], Error>({
+  } = useQuery<PostsResponse, Error>({
     queryKey: ["/api/posts"],
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
+  // استخراج المقالات من الاستجابة
+  const posts = data?.data || [];
+  
   // فلترة المقالات المميزة
-  const featuredPosts = allPosts.filter(post => post.isFeatured);
+  const featuredPosts = posts.filter(post => post.isFeatured);
 
   return (
     <PostsContext.Provider
       value={{
-        posts: allPosts,
+        posts,
         featuredPosts,
         isLoading: postsLoading,
         error: postsError || null,

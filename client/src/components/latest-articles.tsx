@@ -8,17 +8,33 @@ import { Button } from '@/components/ui/button';
 import { formatDate, getInitials } from '@/lib/utils';
 import { Post, User as UserType } from '@shared/schema';
 
+interface PostsResponse {
+  success: boolean;
+  data: Post[];
+}
+
+interface UsersResponse {
+  success: boolean;
+  data: UserType[];
+}
+
 const LatestArticles = () => {
-  const { data: posts, isLoading, error } = useQuery<Post[]>({
+  const { data: postsResponse, isLoading, error } = useQuery<PostsResponse>({
     queryKey: ['/api/posts'],
   });
+  
+  // Extract the actual posts array from the response
+  const posts = postsResponse?.data || [];
 
-  const { data: users } = useQuery<UserType[]>({
+  const { data: usersResponse } = useQuery<UsersResponse>({
     queryKey: ['/api/users'],
   });
+  
+  // Extract the actual users array from the response
+  const users = usersResponse?.data || [];
 
   const getAuthorName = (authorId?: number) => {
-    if (!authorId || !users) return 'فريق FULLSCO';
+    if (!authorId || !users || users.length === 0) return 'فريق FULLSCO';
     const author = users.find(u => u.id === authorId);
     return author?.fullName || 'فريق FULLSCO';
   };
