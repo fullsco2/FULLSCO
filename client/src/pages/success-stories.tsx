@@ -16,7 +16,14 @@ export default function SuccessStories() {
     setIsClient(true);
   }, []);
 
-  const { data: stories, isLoading, error } = useQuery({
+  // تعريف نوع بيانات استجابة API لقصص النجاح
+  interface SuccessStoriesResponse {
+    success: boolean;
+    data: any[];
+    message?: string;
+  }
+
+  const { data: storiesResponse, isLoading, error } = useQuery<SuccessStoriesResponse>({
     queryKey: ['/api/success-stories'],
     queryFn: async () => {
       const response = await fetch('/api/success-stories');
@@ -27,6 +34,11 @@ export default function SuccessStories() {
     },
     enabled: isClient,
   });
+  
+  // استخراج قصص النجاح من الاستجابة
+  const stories = storiesResponse?.success && Array.isArray(storiesResponse.data) 
+    ? storiesResponse.data 
+    : [];
 
   if (!isClient) {
     return null;

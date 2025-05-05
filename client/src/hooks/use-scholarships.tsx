@@ -10,26 +10,41 @@ type ScholarshipsContextType = {
   error: Error | null;
 };
 
+// استجابة API للمنح الدراسية
+interface ScholarshipsResponse {
+  success: boolean;
+  data: Scholarship[];
+  message?: string;
+}
+
 export const ScholarshipsContext = createContext<ScholarshipsContextType | null>(null);
 
 export function ScholarshipsProvider({ children }: { children: ReactNode }) {
   const {
-    data: scholarships = [],
+    data: scholarshipsResponse,
     error: scholarshipsError,
     isLoading: scholarshipsLoading,
-  } = useQuery<Scholarship[], Error>({
+  } = useQuery<ScholarshipsResponse, Error>({
     queryKey: ["/api/scholarships"],
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
+  // استخراج المنح الدراسية من الاستجابة
+  const scholarships = scholarshipsResponse?.success && Array.isArray(scholarshipsResponse.data) 
+    ? scholarshipsResponse.data 
+    : [];
+
   const {
-    data: featuredScholarships = [],
+    data: featuredScholarshipsData = [],
     error: featuredError,
     isLoading: featuredLoading,
   } = useQuery<Scholarship[], Error>({
     queryKey: ["/api/scholarships/featured"],
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
+
+  // المنح المميزة تأتي مباشرة كمصفوفة بدون success/data
+  const featuredScholarships = featuredScholarshipsData || [];
 
   // Combine errors
   const error = scholarshipsError || featuredError;
