@@ -45,7 +45,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     'partners',       // الشركاء
     'scholarships',   // المنح الدراسية
     'posts',          // المقالات
-    'success-stories' // قصص النجاح
+    'success-stories', // قصص النجاح
+    'categories'      // التصنيفات
   ];
 
   console.log('🚀 بدء تسجيل المسارات...');
@@ -179,62 +180,66 @@ export function registerLegacyRoutes(app: Express, migratedModules: string[] = [
 
   // تسجيل مسارات API استنادًا إلى الوحدات التي لم يتم نقلها بعد
   
-  // Category routes
-  app.post("/api/categories", isAdmin, async (req, res) => {
-    try {
-      const data = insertCategorySchema.parse(req.body);
-      const category = await storage.createCategory(data);
-      res.status(201).json(category);
-    } catch (error) {
-      res.status(400).json({ message: (error as Error).message });
-    }
-  });
+  // === وحدة التصنيفات (Categories) ===
+  if (!migratedModules.includes('categories')) {
+    console.log('⚠️ تسجيل مسارات التصنيفات القديمة (categories)');
+    
+    app.post("/api/categories", isAdmin, async (req, res) => {
+      try {
+        const data = insertCategorySchema.parse(req.body);
+        const category = await storage.createCategory(data);
+        res.status(201).json(category);
+      } catch (error) {
+        res.status(400).json({ message: (error as Error).message });
+      }
+    });
 
-  app.get("/api/categories", async (req, res) => {
-    const categories = await storage.listCategories();
-    res.json(categories);
-  });
+    app.get("/api/categories", async (req, res) => {
+      const categories = await storage.listCategories();
+      res.json(categories);
+    });
 
-  app.get("/api/categories/:id", async (req, res) => {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return res.status(400).json({ message: "Invalid category ID" });
-    }
-    const category = await storage.getCategory(id);
-    if (!category) {
-      return res.status(404).json({ message: "Category not found" });
-    }
-    res.json(category);
-  });
-
-  app.put("/api/categories/:id", isAdmin, async (req, res) => {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return res.status(400).json({ message: "Invalid category ID" });
-    }
-    try {
-      const data = insertCategorySchema.partial().parse(req.body);
-      const category = await storage.updateCategory(id, data);
+    app.get("/api/categories/:id", async (req, res) => {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid category ID" });
+      }
+      const category = await storage.getCategory(id);
       if (!category) {
         return res.status(404).json({ message: "Category not found" });
       }
       res.json(category);
-    } catch (error) {
-      res.status(400).json({ message: (error as Error).message });
-    }
-  });
+    });
 
-  app.delete("/api/categories/:id", isAdmin, async (req, res) => {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return res.status(400).json({ message: "Invalid category ID" });
-    }
-    const success = await storage.deleteCategory(id);
-    if (!success) {
-      return res.status(404).json({ message: "Category not found" });
-    }
-    res.json({ message: "Category deleted successfully" });
-  });
+    app.put("/api/categories/:id", isAdmin, async (req, res) => {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid category ID" });
+      }
+      try {
+        const data = insertCategorySchema.partial().parse(req.body);
+        const category = await storage.updateCategory(id, data);
+        if (!category) {
+          return res.status(404).json({ message: "Category not found" });
+        }
+        res.json(category);
+      } catch (error) {
+        res.status(400).json({ message: (error as Error).message });
+      }
+    });
+
+    app.delete("/api/categories/:id", isAdmin, async (req, res) => {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid category ID" });
+      }
+      const success = await storage.deleteCategory(id);
+      if (!success) {
+        return res.status(404).json({ message: "Category not found" });
+      }
+      res.json({ message: "Category deleted successfully" });
+    });
+  }
 
   // Level routes
   app.post("/api/levels", isAdmin, async (req, res) => {
