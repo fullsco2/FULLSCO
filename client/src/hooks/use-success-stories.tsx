@@ -109,11 +109,16 @@ export function useSuccessStories() {
 
 // هوك للحصول على قصة نجاح واحدة
 export function useSuccessStory(id: number) {
-  const { data: successStory, isLoading, error } = useQuery<SuccessStory>({
+  const { data: successStoryResponse, isLoading, error } = useQuery<{ success: boolean, data: SuccessStory } | SuccessStory>({
     queryKey: ["/api/success-stories", id],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!id,
   });
+
+  // استخراج قصة النجاح من البيانات المستجابة
+  const successStory = (successStoryResponse && 'data' in successStoryResponse) 
+    ? successStoryResponse.data 
+    : successStoryResponse;
 
   return {
     successStory,

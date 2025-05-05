@@ -205,19 +205,19 @@ const AdminScholarships = () => {
     }
   };
 
-  const getCountryName = (countryId?: number) => {
+  const getCountryName = (countryId?: number | null) => {
     if (!countryId || !countries) return "";
     const country = countries.find((c) => c.id === countryId);
     return country?.name || "";
   };
 
-  const getLevelName = (levelId?: number) => {
+  const getLevelName = (levelId?: number | null) => {
     if (!levelId || !levels) return "";
     const level = levels.find((l) => l.id === levelId);
     return level?.name || "";
   };
 
-  const getCategoryName = (categoryId?: number) => {
+  const getCategoryName = (categoryId?: number | null) => {
     if (!categoryId || !categories) return "";
     const category = categories.find((c) => c.id === categoryId);
     return category?.name || "";

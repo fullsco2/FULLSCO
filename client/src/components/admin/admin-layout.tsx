@@ -14,13 +14,15 @@ interface AdminLayoutProps {
   title?: string;  // عنوان الصفحة
   actions?: ReactNode;  // أزرار الإجراءات
   activeItem?: string;  // العنصر النشط في السايدبار
+  breadcrumbs?: ReactNode; // فتات الخبز للتنقل
 }
 
 export default function AdminLayout({ 
   children,
   title,
   actions,
-  activeItem
+  activeItem,
+  breadcrumbs
 }: AdminLayoutProps) {
   const [location, setLocation] = useLocation();
   const { user, isLoading } = useAuth();
@@ -82,7 +84,7 @@ export default function AdminLayout({
           
           <div className={`flex-1 transition-all duration-300 ${isMobile ? "mr-0" : "mr-64"}`}>
             <div className="p-4 md:p-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                 <div className="flex items-center">
                   {isMobile && (
                     <Button variant="ghost" size="icon" className="ml-2" onClick={() => setSidebarOpen(true)}>
@@ -97,6 +99,14 @@ export default function AdminLayout({
                   </div>
                 )}
               </div>
+              
+              {/* عرض فتات الخبز إذا كانت موجودة */}
+              {breadcrumbs && (
+                <div className="mb-4">
+                  {breadcrumbs}
+                </div>
+              )}
+              
               {children}
             </div>
           </div>
