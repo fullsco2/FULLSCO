@@ -1,0 +1,762 @@
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { PlusCircle, Edit, Trash2, RefreshCw, Check, X, Menu, Shield, User, Key, Copy } from 'lucide-react';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useLocation } from 'wouter';
+import { useAuth } from '@/hooks/use-auth';
+import { cn } from '@/lib/utils';
+
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/hooks/use-toast';
+import AdminLayout from '@/components/admin/admin-layout';
+
+// زودج سكيما للتحقق من صحة البيانات
+const roleSchema = z.object({
+  name: z.string().min(2, 'اسم الدور يجب أن يكون على الأقل حرفين'),
+  description: z.string().optional(),
+  permissions: z.array(z.string()),
+});
+
+type RoleFormValues = z.infer<typeof roleSchema>;
+
+// واجهة للدور
+interface Role {
+  id: number;
+  name: string;
+  description?: string;
+  permissions: string[];
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// واجهة للمستخدم
+interface User {
+  id: number;
+  username: string;
+  email: string;
+  roleId: number;
+  createdAt: string;
+}
+
+// قائمة الأذونات المتاحة
+const availablePermissions = {
+  dashboard: {
+    view: {
+      id: 'dashboard.view',
+      label: 'عرض لوحة التحكم',
+      group: 'لوحة التحكم',
+    },
+    analytics: {
+      id: 'dashboard.analytics',
+      label: 'عرض التحليلات',
+      group: 'لوحة التحكم',
+    },
+  },
+  scholarships: {
+    view: {
+      id: 'scholarships.view',
+      label: 'عرض المنح الدراسية',
+      group: 'المنح الدراسية',
+    },
+    create: {
+      id: 'scholarships.create',
+      label: 'إنشاء المنح الدراسية',
+      group: 'المنح الدراسية',
+    },
+    edit: {
+      id: 'scholarships.edit',
+      label: 'تعديل المنح الدراسية',
+      group: 'المنح الدراسية',
+    },
+    delete: {
+      id: 'scholarships.delete',
+      label: 'حذف المنح الدراسية',
+      group: 'المنح الدراسية',
+    },
+  },
+  categories: {
+    view: {
+      id: 'categories.view',
+      label: 'عرض التصنيفات',
+      group: 'التصنيفات',
+    },
+    manage: {
+      id: 'categories.manage',
+      label: 'إدارة التصنيفات',
+      group: 'التصنيفات',
+    },
+  },
+  levels: {
+    view: {
+      id: 'levels.view',
+      label: 'عرض المستويات الدراسية',
+      group: 'المستويات الدراسية',
+    },
+    manage: {
+      id: 'levels.manage',
+      label: 'إدارة المستويات الدراسية',
+      group: 'المستويات الدراسية',
+    },
+  },
+  countries: {
+    view: {
+      id: 'countries.view',
+      label: 'عرض الدول',
+      group: 'الدول',
+    },
+    manage: {
+      id: 'countries.manage',
+      label: 'إدارة الدول',
+      group: 'الدول',
+    },
+  },
+  posts: {
+    view: {
+      id: 'posts.view',
+      label: 'عرض المقالات',
+      group: 'المقالات',
+    },
+    create: {
+      id: 'posts.create',
+      label: 'إنشاء المقالات',
+      group: 'المقالات',
+    },
+    edit: {
+      id: 'posts.edit',
+      label: 'تعديل المقالات',
+      group: 'المقالات',
+    },
+    delete: {
+      id: 'posts.delete',
+      label: 'حذف المقالات',
+      group: 'المقالات',
+    },
+  },
+  pages: {
+    view: {
+      id: 'pages.view',
+      label: 'عرض الصفحات',
+      group: 'الصفحات',
+    },
+    manage: {
+      id: 'pages.manage',
+      label: 'إدارة الصفحات',
+      group: 'الصفحات',
+    },
+  },
+  media: {
+    view: {
+      id: 'media.view',
+      label: 'عرض الوسائط',
+      group: 'الوسائط',
+    },
+    upload: {
+      id: 'media.upload',
+      label: 'رفع الوسائط',
+      group: 'الوسائط',
+    },
+    delete: {
+      id: 'media.delete',
+      label: 'حذف الوسائط',
+      group: 'الوسائط',
+    },
+  },
+  menus: {
+    view: {
+      id: 'menus.view',
+      label: 'عرض القوائم',
+      group: 'القوائم',
+    },
+    manage: {
+      id: 'menus.manage',
+      label: 'إدارة القوائم',
+      group: 'القوائم',
+    },
+  },
+  users: {
+    view: {
+      id: 'users.view',
+      label: 'عرض المستخدمين',
+      group: 'المستخدمين',
+    },
+    create: {
+      id: 'users.create',
+      label: 'إنشاء المستخدمين',
+      group: 'المستخدمين',
+    },
+    edit: {
+      id: 'users.edit',
+      label: 'تعديل المستخدمين',
+      group: 'المستخدمين',
+    },
+    delete: {
+      id: 'users.delete',
+      label: 'حذف المستخدمين',
+      group: 'المستخدمين',
+    },
+  },
+  roles: {
+    view: {
+      id: 'roles.view',
+      label: 'عرض الأدوار',
+      group: 'الأدوار والتصاريح',
+    },
+    manage: {
+      id: 'roles.manage',
+      label: 'إدارة الأدوار',
+      group: 'الأدوار والتصاريح',
+    },
+  },
+  settings: {
+    view: {
+      id: 'settings.view',
+      label: 'عرض الإعدادات',
+      group: 'الإعدادات',
+    },
+    manage: {
+      id: 'settings.manage',
+      label: 'إدارة الإعدادات',
+      group: 'الإعدادات',
+    },
+  },
+  seo: {
+    view: {
+      id: 'seo.view',
+      label: 'عرض إعدادات SEO',
+      group: 'تحسين محركات البحث',
+    },
+    manage: {
+      id: 'seo.manage',
+      label: 'إدارة إعدادات SEO',
+      group: 'تحسين محركات البحث',
+    },
+  },
+};
+
+// تحويل قائمة الأذونات إلى مصفوفة
+const allPermissions = Object.values(availablePermissions)
+  .flatMap(category => Object.values(category))
+  .map(permission => permission.id);
+
+// تجميع الأذونات حسب المجموعة
+const groupedPermissions = Object.values(availablePermissions)
+  .flatMap(category => Object.values(category))
+  .reduce((groups, permission) => {
+    if (!groups[permission.group]) {
+      groups[permission.group] = [];
+    }
+    groups[permission.group].push(permission);
+    return groups;
+  }, {} as Record<string, typeof Object.values<typeof availablePermissions[keyof typeof availablePermissions]>[number][]>);
+
+export default function RolesManagementPage() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [isUsersDialogOpen, setIsUsersDialogOpen] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('roles');
+  const { isLoading: authLoading, isAuthenticated } = useAuth();
+  const [, navigate] = useLocation();
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // التحقق من تسجيل الدخول
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate('/admin/login');
+    }
+  }, [authLoading, isAuthenticated, navigate]);
+
+  // استلام الأدوار من الخادم
+  const { data: roles, isLoading: rolesLoading, isError: rolesError, refetch: refetchRoles } = useQuery<Role[]>({
+    queryKey: ['/api/roles'],
+    queryFn: async () => {
+      try {
+        // سنضيف نقطة نهاية API لاحقًا - في الوقت الحالي استخدم بيانات تجريبية للتطوير
+        // const response = await fetch('/api/roles');
+        // if (!response.ok) throw new Error('فشل في استلام الأدوار');
+        // return response.json();
+        
+        // بيانات تجريبية للعرض أثناء التطوير
+        return [
+          {
+            id: 1,
+            name: 'مدير النظام',
+            description: 'يملك كافة الصلاحيات في النظام',
+            permissions: allPermissions,
+            isDefault: false,
+            createdAt: '2025-01-01T00:00:00Z',
+            updatedAt: '2025-01-01T00:00:00Z',
+          },
+          {
+            id: 2,
+            name: 'محرر',
+            description: 'يستطيع إدارة المحتوى ولكن بدون صلاحيات إدارية كاملة',
+            permissions: [
+              'dashboard.view',
+              'scholarships.view',
+              'scholarships.create',
+              'scholarships.edit',
+              'categories.view',
+              'categories.manage',
+              'levels.view',
+              'countries.view',
+              'posts.view',
+              'posts.create',
+              'posts.edit',
+              'pages.view',
+              'pages.manage',
+              'media.view',
+              'media.upload',
+            ],
+            isDefault: false,
+            createdAt: '2025-01-05T00:00:00Z',
+            updatedAt: '2025-01-05T00:00:00Z',
+          },
+          {
+            id: 3,
+            name: 'مستخدم',
+            description: 'مستخدم عادي مع صلاحيات محدودة',
+            permissions: [
+              'dashboard.view',
+              'scholarships.view',
+              'categories.view',
+              'levels.view',
+              'countries.view',
+              'posts.view',
+              'pages.view',
+              'media.view',
+            ],
+            isDefault: true,
+            createdAt: '2025-01-10T00:00:00Z',
+            updatedAt: '2025-01-10T00:00:00Z',
+          },
+        ] as Role[];
+      } catch (error) {
+        console.error('Error fetching roles:', error);
+        throw error;
+      }
+    },
+    enabled: isAuthenticated,
+  });
+
+  // استلام المستخدمين من الخادم
+  const { data: users, isLoading: usersLoading, isError: usersError, refetch: refetchUsers } = useQuery<User[]>({
+    queryKey: ['/api/users'],
+    queryFn: async () => {
+      try {
+        // سنضيف نقطة نهاية API لاحقًا - في الوقت الحالي استخدم بيانات تجريبية للتطوير
+        // const response = await fetch('/api/users');
+        // if (!response.ok) throw new Error('فشل في استلام المستخدمين');
+        // return response.json();
+        
+        // بيانات تجريبية للعرض أثناء التطوير
+        return [
+          {
+            id: 1,
+            username: 'admin',
+            email: 'admin@fullsco.com',
+            roleId: 1,
+            createdAt: '2025-01-01T00:00:00Z',
+          },
+          {
+            id: 2,
+            username: 'editor',
+            email: 'editor@fullsco.com',
+            roleId: 2,
+            createdAt: '2025-01-05T00:00:00Z',
+          },
+          {
+            id: 3,
+            username: 'user1',
+            email: 'user1@example.com',
+            roleId: 3,
+            createdAt: '2025-01-10T00:00:00Z',
+          },
+          {
+            id: 4,
+            username: 'user2',
+            email: 'user2@example.com',
+            roleId: 3,
+            createdAt: '2025-01-15T00:00:00Z',
+          },
+        ] as User[];
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        throw error;
+      }
+    },
+    enabled: isAuthenticated && activeTab === 'users',
+  });
+
+  // إضافة دور جديد
+  const addMutation = useMutation({
+    mutationFn: async (newRole: RoleFormValues) => {
+      // سيتم إضافة نقطة نهاية API لاحقًا
+      // const response = await fetch('/api/roles', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(newRole),
+      // });
+      // if (!response.ok) throw new Error('فشل في إضافة الدور');
+      // return response.json();
+      
+      // محاكاة استجابة API
+      const now = new Date().toISOString();
+      const id = Math.max(0, ...roles?.map(role => role.id) || []) + 1;
+      
+      return { 
+        ...newRole, 
+        id, 
+        isDefault: false,
+        createdAt: now, 
+        updatedAt: now 
+      } as Role;
+    },
+    onSuccess: (newRole) => {
+      queryClient.setQueryData(['/api/roles'], (old: Role[] | undefined) => 
+        [...(old || []), newRole]
+      );
+      toast({ title: 'تم الإضافة بنجاح', description: 'تمت إضافة الدور الجديد بنجاح' });
+      setIsAddDialogOpen(false);
+    },
+    onError: (error) => {
+      toast({ title: 'خطأ!', description: `فشل في إضافة الدور: ${error.message}`, variant: 'destructive' });
+    }
+  });
+
+  // تعديل دور
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, role }: { id: number, role: RoleFormValues }) => {
+      // سيتم إضافة نقطة نهاية API لاحقًا
+      // const response = await fetch(`/api/roles/${id}`, {
+      //   method: 'PUT',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(role),
+      // });
+      // if (!response.ok) throw new Error('فشل في تحديث الدور');
+      // return response.json();
+      
+      // محاكاة استجابة API
+      const existingRole = roles?.find(r => r.id === id);
+      
+      if (!existingRole) {
+        throw new Error('الدور غير موجود');
+      }
+      
+      return { 
+        ...existingRole, 
+        ...role,
+        updatedAt: new Date().toISOString() 
+      } as Role;
+    },
+    onSuccess: (updatedRole) => {
+      queryClient.setQueryData(['/api/roles'], (old: Role[] | undefined) => 
+        (old || []).map(role => role.id === updatedRole.id ? updatedRole : role)
+      );
+      toast({ title: 'تم التحديث بنجاح', description: 'تم تحديث الدور بنجاح' });
+      setIsEditDialogOpen(false);
+      setSelectedRole(null);
+    },
+    onError: (error) => {
+      toast({ title: 'خطأ!', description: `فشل في تحديث الدور: ${error.message}`, variant: 'destructive' });
+    }
+  });
+
+  // حذف دور
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      // سيتم إضافة نقطة نهاية API لاحقًا
+      // const response = await fetch(`/api/roles/${id}`, {
+      //   method: 'DELETE',
+      // });
+      // if (!response.ok) throw new Error('فشل في حذف الدور');
+      // return response.json();
+      
+      // محاكاة استجابة API
+      return { success: true, id };
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['/api/roles'], (old: Role[] | undefined) => 
+        (old || []).filter(role => role.id !== data.id)
+      );
+      toast({ title: 'تم الحذف بنجاح', description: 'تم حذف الدور بنجاح' });
+      setIsDeleteDialogOpen(false);
+      setSelectedRole(null);
+    },
+    onError: (error) => {
+      toast({ title: 'خطأ!', description: `فشل في حذف الدور: ${error.message}`, variant: 'destructive' });
+    }
+  });
+
+  // تعيين دور للمستخدم
+  const assignRoleMutation = useMutation({
+    mutationFn: async ({ userId, roleId }: { userId: number, roleId: number }) => {
+      // سيتم إضافة نقطة نهاية API لاحقًا
+      // const response = await fetch(`/api/users/${userId}/role`, {
+      //   method: 'PUT',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ roleId }),
+      // });
+      // if (!response.ok) throw new Error('فشل في تعيين الدور للمستخدم');
+      // return response.json();
+      
+      // محاكاة استجابة API
+      const user = users?.find(u => u.id === userId);
+      
+      if (!user) {
+        throw new Error('المستخدم غير موجود');
+      }
+      
+      return { 
+        ...user, 
+        roleId 
+      } as User;
+    },
+    onSuccess: (updatedUser) => {
+      queryClient.setQueryData(['/api/users'], (old: User[] | undefined) => 
+        (old || []).map(user => user.id === updatedUser.id ? updatedUser : user)
+      );
+      toast({ title: 'تم التعيين بنجاح', description: 'تم تعيين الدور للمستخدم بنجاح' });
+      setIsAssignDialogOpen(false);
+      setSelectedUser(null);
+    },
+    onError: (error) => {
+      toast({ title: 'خطأ!', description: `فشل في تعيين الدور للمستخدم: ${error.message}`, variant: 'destructive' });
+    }
+  });
+
+  // تعيين الدور الافتراضي
+  const setDefaultMutation = useMutation({
+    mutationFn: async (id: number) => {
+      // سيتم إضافة نقطة نهاية API لاحقًا
+      // const response = await fetch(`/api/roles/${id}/default`, {
+      //   method: 'PUT',
+      // });
+      // if (!response.ok) throw new Error('فشل في تعيين الدور الافتراضي');
+      // return response.json();
+      
+      // محاكاة استجابة API
+      return { success: true, id };
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['/api/roles'], (old: Role[] | undefined) => 
+        (old || []).map(role => ({
+          ...role,
+          isDefault: role.id === data.id,
+        }))
+      );
+      toast({ title: 'تم التعيين بنجاح', description: 'تم تعيين الدور الافتراضي بنجاح' });
+    },
+    onError: (error) => {
+      toast({ title: 'خطأ!', description: `فشل في تعيين الدور الافتراضي: ${error.message}`, variant: 'destructive' });
+    }
+  });
+
+  // نموذج إضافة دور جديد
+  const addForm = useForm<RoleFormValues>({
+    resolver: zodResolver(roleSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      permissions: [],
+    },
+  });
+
+  // نموذج تعديل دور
+  const editForm = useForm<RoleFormValues>({
+    resolver: zodResolver(roleSchema),
+    defaultValues: {
+      name: selectedRole?.name || '',
+      description: selectedRole?.description || '',
+      permissions: selectedRole?.permissions || [],
+    },
+  });
+
+  // نموذج تعيين دور للمستخدم
+  const assignForm = useForm<{ roleId: number }>({
+    defaultValues: {
+      roleId: selectedUser?.roleId || 0,
+    },
+  });
+
+  // تحديث نموذج التعديل عند تغيير الدور المحدد
+  useEffect(() => {
+    if (selectedRole) {
+      editForm.reset({
+        name: selectedRole.name,
+        description: selectedRole.description || '',
+        permissions: selectedRole.permissions,
+      });
+    }
+  }, [selectedRole, editForm]);
+
+  // تحديث نموذج التعيين عند تغيير المستخدم المحدد
+  useEffect(() => {
+    if (selectedUser) {
+      assignForm.reset({
+        roleId: selectedUser.roleId,
+      });
+    }
+  }, [selectedUser, assignForm]);
+
+  // إعادة ضبط نموذج الإضافة عند فتح نافذة الإضافة
+  useEffect(() => {
+    if (isAddDialogOpen) {
+      addForm.reset({
+        name: '',
+        description: '',
+        permissions: [],
+      });
+    }
+  }, [isAddDialogOpen, addForm]);
+
+  // معالجة حدث إرسال نموذج الإضافة
+  const onSubmitAdd = (data: RoleFormValues) => {
+    addMutation.mutate(data);
+  };
+
+  // معالجة حدث إرسال نموذج التعديل
+  const onSubmitEdit = (data: RoleFormValues) => {
+    if (selectedRole) {
+      updateMutation.mutate({ id: selectedRole.id, role: data });
+    }
+  };
+
+  // معالجة حدث إرسال نموذج التعيين
+  const onSubmitAssign = (data: { roleId: number }) => {
+    if (selectedUser) {
+      assignRoleMutation.mutate({ userId: selectedUser.id, roleId: data.roleId });
+    }
+  };
+
+  // الحصول على اسم الدور من معرف الدور
+  const getRoleName = (roleId: number) => {
+    const role = roles?.find(r => r.id === roleId);
+    return role?.name || 'غير معروف';
+  };
+
+  // معالجة تحديد جميع الأذونات في مجموعة
+  const handleSelectAllInGroup = (group: string, checked: boolean) => {
+    const groupPermissions = groupedPermissions[group].map(p => p.id);
+    
+    if (isEditDialogOpen) {
+      const currentPermissions = new Set(editForm.getValues('permissions'));
+      
+      if (checked) {
+        groupPermissions.forEach(p => currentPermissions.add(p));
+      } else {
+        groupPermissions.forEach(p => currentPermissions.delete(p));
+      }
+      
+      editForm.setValue('permissions', Array.from(currentPermissions));
+    } else if (isAddDialogOpen) {
+      const currentPermissions = new Set(addForm.getValues('permissions'));
+      
+      if (checked) {
+        groupPermissions.forEach(p => currentPermissions.add(p));
+      } else {
+        groupPermissions.forEach(p => currentPermissions.delete(p));
+      }
+      
+      addForm.setValue('permissions', Array.from(currentPermissions));
+    }
+  };
+
+  // التحقق مما إذا كانت جميع الأذونات في مجموعة محددة
+  const isGroupSelected = (group: string) => {
+    const groupPermissions = groupedPermissions[group].map(p => p.id);
+    
+    if (isEditDialogOpen) {
+      const currentPermissions = editForm.getValues('permissions');
+      return groupPermissions.every(p => currentPermissions.includes(p));
+    } else if (isAddDialogOpen) {
+      const currentPermissions = addForm.getValues('permissions');
+      return groupPermissions.every(p => currentPermissions.includes(p));
+    }
+    
+    return false;
+  };
+
+  // التحقق مما إذا كانت بعض الأذونات في مجموعة محددة
+  const isGroupIndeterminate = (group: string) => {
+    const groupPermissions = groupedPermissions[group].map(p => p.id);
+    
+    if (isEditDialogOpen) {
+      const currentPermissions = editForm.getValues('permissions');
+      const selected = groupPermissions.filter(p => currentPermissions.includes(p));
+      return selected.length > 0 && selected.length < groupPermissions.length;
+    } else if (isAddDialogOpen) {
+      const currentPermissions = addForm.getValues('permissions');
+      const selected = groupPermissions.filter(p => currentPermissions.includes(p));
+      return selected.length > 0 && selected.length < groupPermissions.length;
+    }
+    
+    return false;
+  };
+
+  // معالجة تحديد جميع الأذونات
+  const handleSelectAll = (checked: boolean) => {
+    if (isEditDialogOpen) {
+      editForm.setValue('permissions', checked ? allPermissions : []);
+    } else if (isAddDialogOpen) {
+      addForm.setValue('permissions', checked ? allPermissions : []);
+    }
+  };
+
+  // التحقق مما إذا كانت جميع الأذونات محددة
+  const isAllSelected = () => {
+    if (isEditDialogOpen) {
+      const currentPermissions = editForm.getValues('permissions');
+      return allPermissions.every(p => currentPermissions.includes(p));
+    } else if (isAddDialogOpen) {
+      const currentPermissions = addForm.getValues('permissions');
+      return allPermissions.every(p => currentPermissions.includes(p));
+    }
+    
+    return false;
+  };
+
+  // التحقق مما إذا كانت بعض الأذونات محددة
+  const isAllIndeterminate = () => {
+    if (isEditDialogOpen) {
+      const currentPermissions = editForm.getValues('permissions');
+      return currentPermissions.length > 0 && currentPermissions.length < allPermissions.length;
+    } else if (isAddDialogOpen) {
+      const currentPermissions = addForm.getValues('permissions');
+      return currentPermissions.length > 0 && currentPermissions.length < allPermissions.length;
+    }
+    
+    return false;
+  };
+
+  // نسخ قائمة الأذونات إلى الحافظة
+  const copyPermissions = (permissions: string[]) => {
+    navigator.clipboard.writeText(permissions.join(', '))
+      .then(() => {
+        toast({ title: 'تم النسخ', description: 'تم نسخ قائمة الأذونات إلى الحافظة' });
+      })
+      .catch(error => {
+        toast({ title: 'خطأ!', description: 'فشل في نسخ قائمة الأذونات', variant: 'destructive' });
+        console.error('Failed to copy permissions:', error);
+      });
+  };

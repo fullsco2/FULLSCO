@@ -1,0 +1,500 @@
+      
+      // Increment view count
+      await storage.incrementPostViews(post.id);
+      
+      // Get updated post with incremented view count
+      const updatedPost = await storage.getPost(post.id);
+      res.json(updatedPost);
+    } catch (error) {
+      console.error("Error fetching post by slug:", error);
+      res.status(500).json({ message: "Failed to fetch post", error: (error as Error).message });
+    }
+  });
+  
+  app.get("/api/posts/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
+      console.log(`Fetching post with ID: ${id}`);
+      const post = await storage.getPost(id);
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+      
+      // Increment view count
+      await storage.incrementPostViews(id);
+      
+      // Get updated post with incremented view count
+      const updatedPost = await storage.getPost(id);
+      res.json(updatedPost);
+    } catch (error) {
+      console.error(`Error fetching post with ID ${req.params.id}:`, error);
+      res.status(500).json({ message: "Failed to fetch post", error: (error as Error).message });
+    }
+  });
+
+  // تحديث المقال باستخدام PUT
+  app.put("/api/posts/:id", isAdmin, async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid post ID" });
+    }
+    try {
+      // استخراج التصنيفات من البيانات المرسلة
+      const { tags, ...postData } = req.body;
+      
+      const data = insertPostSchema.partial().parse(postData);
+      console.log("تحديث المقال باستخدام PUT:", id, data);
+      
+      const post = await storage.updatePost(id, data);
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+      
+      // تحديث التصنيفات إذا تم إرسالها
+      if (tags !== undefined) {
+        // حذف جميع التصنيفات الحالية
+        const currentTags = await storage.getPostTags(id);
+        for (const tag of currentTags) {
+          await storage.removeTagFromPost(id, tag.id);
+        }
+        
+        // إضافة التصنيفات الجديدة
+        if (Array.isArray(tags) && tags.length > 0) {
+          for (const tagId of tags) {
+            try {
+              await storage.addTagToPost(id, parseInt(tagId));
+            } catch (tagError) {
+              console.error(`خطأ في إضافة التصنيف ${tagId} للمقال ${id}:`, tagError);
+            }
+          }
+        }
+      }
+      
+      // إرجاع المقال المحدث مع التصنيفات
+      const updatedPost = await storage.getPost(id);
+      const postTags = await storage.getPostTags(id);
+      
+      res.json({ ...updatedPost, tags: postTags });
+    } catch (error) {
+      console.error("خطأ في تحديث المقال:", error);
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+  
+  // تحديث المقال باستخدام PATCH (لمزيد من التوافق مع الواجهات الأمامية)
+  app.patch("/api/posts/:id", isAdmin, async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid post ID" });
+    }
+    try {
+      // استخراج التصنيفات من البيانات المرسلة
+      const { tags, ...postData } = req.body;
+      
+      const data = insertPostSchema.partial().parse(postData);
+      console.log("تحديث المقال باستخدام PATCH:", id, data);
+      console.log("محتوى المقال:", data.content);
+      
+      const post = await storage.updatePost(id, data);
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+      
+      // تحديث التصنيفات إذا تم إرسالها
+      if (tags !== undefined) {
+        // حذف جميع التصنيفات الحالية
+        const currentTags = await storage.getPostTags(id);
+        for (const tag of currentTags) {
+          await storage.removeTagFromPost(id, tag.id);
+        }
+        
+        // إضافة التصنيفات الجديدة
+        if (Array.isArray(tags) && tags.length > 0) {
+          for (const tagId of tags) {
+            try {
+              await storage.addTagToPost(id, parseInt(tagId));
+            } catch (tagError) {
+              console.error(`خطأ في إضافة التصنيف ${tagId} للمقال ${id}:`, tagError);
+            }
+          }
+        }
+      }
+      
+      // إرجاع المقال المحدث مع التصنيفات
+      const updatedPost = await storage.getPost(id);
+      const postTags = await storage.getPostTags(id);
+      
+      res.json({ ...updatedPost, tags: postTags });
+    } catch (error) {
+      console.error("خطأ في تحديث المقال:", error);
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.delete("/api/posts/:id", isAdmin, async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid post ID" });
+    }
+    const success = await storage.deletePost(id);
+    if (!success) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+    res.json({ message: "Post deleted successfully" });
+  });
+
+  // Tag routes
+  app.post("/api/tags", isAdmin, async (req, res) => {
+    try {
+      const data = insertTagSchema.parse(req.body);
+      const tag = await storage.createTag(data);
+      res.status(201).json(tag);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.get("/api/tags", async (req, res) => {
+    const tags = await storage.listTags();
+    res.json(tags);
+  });
+
+  // Post-Tag relationship routes
+  app.post("/api/posts/:postId/tags/:tagId", isAdmin, async (req, res) => {
+    const postId = parseInt(req.params.postId);
+    const tagId = parseInt(req.params.tagId);
+    
+    if (isNaN(postId) || isNaN(tagId)) {
+      return res.status(400).json({ message: "Invalid post ID or tag ID" });
+    }
+    
+    const post = await storage.getPost(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+    
+    const tag = await storage.getTag(tagId);
+    if (!tag) {
+      return res.status(404).json({ message: "Tag not found" });
+    }
+    
+    const postTag = await storage.addTagToPost(postId, tagId);
+    res.status(201).json(postTag);
+  });
+
+  app.get("/api/posts/:postId/tags", async (req, res) => {
+    const postId = parseInt(req.params.postId);
+    if (isNaN(postId)) {
+      return res.status(400).json({ message: "Invalid post ID" });
+    }
+    
+    const post = await storage.getPost(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+    
+    const tags = await storage.getPostTags(postId);
+    res.json(tags);
+  });
+
+  app.delete("/api/posts/:postId/tags/:tagId", isAdmin, async (req, res) => {
+    const postId = parseInt(req.params.postId);
+    const tagId = parseInt(req.params.tagId);
+    
+    if (isNaN(postId) || isNaN(tagId)) {
+      return res.status(400).json({ message: "Invalid post ID or tag ID" });
+    }
+    
+    const success = await storage.removeTagFromPost(postId, tagId);
+    if (!success) {
+      return res.status(404).json({ message: "Post-tag relationship not found" });
+    }
+    
+    res.json({ message: "Tag removed from post successfully" });
+  });
+
+  // Success Story routes
+  app.post("/api/success-stories", isAdmin, async (req, res) => {
+    try {
+      const data = insertSuccessStorySchema.parse(req.body);
+      const story = await storage.createSuccessStory(data);
+      res.status(201).json(story);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.get("/api/success-stories", async (req, res) => {
+    const stories = await storage.listSuccessStories();
+    res.json(stories);
+  });
+
+  app.get("/api/success-stories/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid success story ID" });
+    }
+    const story = await storage.getSuccessStory(id);
+    if (!story) {
+      return res.status(404).json({ message: "Success story not found" });
+    }
+    res.json(story);
+  });
+
+  app.get("/api/success-stories/slug/:slug", async (req, res) => {
+    const slug = req.params.slug;
+    const story = await storage.getSuccessStoryBySlug(slug);
+    if (!story) {
+      return res.status(404).json({ message: "Success story not found" });
+    }
+    res.json(story);
+  });
+
+  app.put("/api/success-stories/:id", isAdmin, async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid success story ID" });
+    }
+    try {
+      const data = insertSuccessStorySchema.partial().parse(req.body);
+      const story = await storage.updateSuccessStory(id, data);
+      if (!story) {
+        return res.status(404).json({ message: "Success story not found" });
+      }
+      res.json(story);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.delete("/api/success-stories/:id", isAdmin, async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid success story ID" });
+    }
+    const success = await storage.deleteSuccessStory(id);
+    if (!success) {
+      return res.status(404).json({ message: "Success story not found" });
+    }
+    res.json({ message: "Success story deleted successfully" });
+  });
+
+  // Newsletter subscriber routes
+  app.post("/api/subscribers", async (req, res) => {
+    try {
+      const data = insertSubscriberSchema.parse(req.body);
+      
+      // Check if subscriber already exists
+      const existingSubscriber = await storage.getSubscriberByEmail(data.email);
+      if (existingSubscriber) {
+        return res.status(409).json({ message: "Email already subscribed" });
+      }
+      
+      const subscriber = await storage.createSubscriber(data);
+      res.status(201).json(subscriber);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.get("/api/subscribers", isAdmin, async (req, res) => {
+    const subscribers = await storage.listSubscribers();
+    res.json(subscribers);
+  });
+
+  // SEO settings routes
+  app.post("/api/seo-settings", isAdmin, async (req, res) => {
+    try {
+      const data = insertSeoSettingsSchema.parse(req.body);
+      
+      // Check if setting for this path already exists
+      const existingSetting = await storage.getSeoSettingByPath(data.pagePath);
+      if (existingSetting) {
+        // Update instead of create
+        const updated = await storage.updateSeoSetting(existingSetting.id, data);
+        return res.json(updated);
+      }
+      
+      const seoSetting = await storage.createSeoSetting(data);
+      res.status(201).json(seoSetting);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.get("/api/seo-settings", isAdmin, async (req, res) => {
+    const settings = await storage.listSeoSettings();
+    res.json(settings);
+  });
+
+  app.get("/api/seo-settings/path", async (req, res) => {
+    const path = req.query.path as string;
+    if (!path) {
+      return res.status(400).json({ message: "Path parameter is required" });
+    }
+    
+    const setting = await storage.getSeoSettingByPath(path);
+    if (!setting) {
+      return res.json({ 
+        pagePath: path,
+        metaTitle: "FULLSCO - Scholarship Blog",
+        metaDescription: "Find and apply for scholarships worldwide with FULLSCO."
+      });
+    }
+    
+    res.json(setting);
+  });
+
+  app.put("/api/seo-settings/:id", isAdmin, async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid SEO setting ID" });
+    }
+    try {
+      const data = insertSeoSettingsSchema.partial().parse(req.body);
+      const setting = await storage.updateSeoSetting(id, data);
+      if (!setting) {
+        return res.status(404).json({ message: "SEO setting not found" });
+      }
+      res.json(setting);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  // Site Settings routes
+  app.get("/api/site-settings", async (req, res) => {
+    const settings = await storage.getSiteSettings();
+    if (!settings) {
+      return res.status(404).json({ message: "Site settings not found" });
+    }
+    res.json(settings);
+  });
+
+  // تحديث كل إعدادات الموقع دفعة واحدة
+  app.put("/api/site-settings", isAdmin, async (req, res) => {
+    try {
+      console.log("Received site settings update request:", JSON.stringify(req.body, null, 2));
+      
+      // حاول التحقق من صحة البيانات
+      let data;
+      try {
+        data = insertSiteSettingsSchema.partial().parse(req.body);
+        console.log("Parsed site settings data:", JSON.stringify(data, null, 2));
+      } catch (parseError) {
+        console.error("Site settings validation error:", parseError);
+        return res.status(400).json({ 
+          message: "Invalid data format", 
+          details: (parseError as Error).message 
+        });
+      }
+      
+      // تحديث الإعدادات
+      const settings = await storage.updateSiteSettings(data);
+      console.log("Site settings updated successfully:", JSON.stringify(settings, null, 2));
+      
+      // إرجاع الإعدادات المحدثة
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating site settings:", error);
+      res.status(500).json({ 
+        message: "Failed to update settings", 
+        details: (error as Error).message 
+      });
+    }
+  });
+  
+  // تحديث إعدادات الموقع العامة فقط (التبويب العام)
+  app.patch("/api/site-settings/general", isAdmin, async (req, res) => {
+    try {
+      console.log("Updating general site settings:", JSON.stringify(req.body, null, 2));
+      
+      const data = insertSiteSettingsSchema.partial().parse({
+        siteName: req.body.siteName,
+        siteTagline: req.body.siteTagline,
+        siteDescription: req.body.siteDescription,
+        rtlDirection: req.body.rtlDirection === true,
+        enableDarkMode: req.body.enableDarkMode === true,
+        defaultLanguage: req.body.defaultLanguage
+      });
+      
+      // تحديث الإعدادات
+      const settings = await storage.updateSiteSettings(data);
+      console.log("General settings updated successfully");
+      
+      // إرجاع الإعدادات المحدثة
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating general settings:", error);
+      res.status(500).json({ message: "Failed to update general settings", error: (error as Error).message });
+    }
+  });
+  
+  // تحديث إعدادات المظهر والألوان فقط
+  app.patch("/api/site-settings/appearance", isAdmin, async (req, res) => {
+    try {
+      console.log("Updating appearance settings:", JSON.stringify(req.body, null, 2));
+      
+      const data = insertSiteSettingsSchema.partial().parse({
+        primaryColor: req.body.primaryColor,
+        secondaryColor: req.body.secondaryColor,
+        accentColor: req.body.accentColor,
+        favicon: req.body.favicon,
+        logo: req.body.logo,
+        logoDark: req.body.logoDark,
+        customCss: req.body.customCss
+      });
+      
+      const settings = await storage.updateSiteSettings(data);
+      console.log("Appearance settings updated successfully");
+      
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating appearance settings:", error);
+      res.status(500).json({ message: "Failed to update appearance settings", error: (error as Error).message });
+    }
+  });
+  
+  // تحديث معلومات الاتصال فقط
+  app.patch("/api/site-settings/contact", isAdmin, async (req, res) => {
+    try {
+      console.log("Updating contact settings:", JSON.stringify(req.body, null, 2));
+      
+      const data = insertSiteSettingsSchema.partial().parse({
+        email: req.body.email,
+        phone: req.body.phone,
+        whatsapp: req.body.whatsapp,
+        address: req.body.address,
+        footerText: req.body.footerText
+      });
+      
+      const settings = await storage.updateSiteSettings(data);
+      console.log("Contact settings updated successfully");
+      
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating contact settings:", error);
+      res.status(500).json({ message: "Failed to update contact settings", error: (error as Error).message });
+    }
+  });
+  
+  // تحديث إعدادات وسائل التواصل الاجتماعي فقط
+  app.patch("/api/site-settings/social", isAdmin, async (req, res) => {
+    try {
+      console.log("Updating social media settings:", JSON.stringify(req.body, null, 2));
+      
+      const data = insertSiteSettingsSchema.partial().parse({
+        facebook: req.body.facebook,
+        twitter: req.body.twitter,
+        instagram: req.body.instagram,
+        youtube: req.body.youtube,
+        linkedin: req.body.linkedin
+      });
+      
+      const settings = await storage.updateSiteSettings(data);
+      console.log("Social media settings updated successfully");
+      
+      res.json(settings);

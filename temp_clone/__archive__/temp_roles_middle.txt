@@ -1,0 +1,24 @@
+  // تحضير أزرار الإجراءات لشريط العنوان
+  const actions = (
+    <>
+      <Button variant="outline" onClick={() => {
+        refetchRoles();
+        refetchUsers();
+      }}>
+        <RefreshCw className="ml-2 h-4 w-4" />
+        تحديث
+      </Button>
+      
+      <Button onClick={() => {
+        setSelectedRole(null);
+        setIsAddDialogOpen(true);
+      }}>
+        <PlusCircle className="ml-2 h-4 w-4" />
+        إضافة دور جديد
+      </Button>
+    </>
+  );
+
+  return (
+    <AdminLayout title="إدارة الأدوار والتصاريح" actions={actions}>
+      <div className="p-4 md:p-6">

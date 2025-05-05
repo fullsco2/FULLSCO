@@ -1,0 +1,480 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* تأثيرات متحركة مخصصة للموقع */
+@layer utilities {
+  /* تأثير التلاشي عند الدخول */
+  .animate-fade-in {
+    animation: fadeIn 0.8s ease-in-out;
+  }
+  
+  /* تأثير الانزلاق للأعلى */
+  .animate-slide-up {
+    animation: slideUp 0.6s ease-out;
+  }
+  
+  /* تأثير النبض */
+  .animate-pulse-custom {
+    animation: pulse 2s infinite;
+  }
+  
+  /* تأثير التحويم على الصورة */
+  .image-hover img {
+    transition: transform 0.6s ease;
+  }
+  
+  .image-hover:hover img {
+    transform: scale(1.05);
+  }
+  
+  /* تأثيرات الزوم البطيء للصور */
+  .zoom-effect-slow img {
+    transition: transform 1.5s ease, filter 0.5s ease;
+  }
+  
+  .zoom-effect-slow:hover img {
+    transform: scale(1.08);
+    filter: brightness(1.05);
+  }
+  
+  /* تأثير ظل متحرك للبطاقات */
+  .card-shadow-hover {
+    transition: all 0.3s ease-in-out;
+  }
+  
+  .card-shadow-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* تأثير الشريط المتحرك - marquee */
+  .marquee {
+    position: relative;
+    overflow: hidden;
+    --offset: 20vw;
+    --move-initial: calc(-25% + var(--offset));
+    --move-final: calc(-50% + var(--offset));
+  }
+  
+  .marquee__content {
+    width: max-content;
+    display: flex;
+    position: relative;
+    transform: translate3d(var(--move-initial), 0, 0);
+    animation: marquee 25s linear infinite;
+  }
+  
+  .marquee:hover .marquee__content {
+    animation-play-state: paused;
+  }
+  
+  @keyframes marquee {
+    0% {
+      transform: translate3d(var(--move-initial), 0, 0);
+    }
+    100% {
+      transform: translate3d(var(--move-final), 0, 0);
+    }
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+}
+
+/* تعريف الـ CSS Variables الخاصة باتجاه الكتابة */
+:root {
+  --direction: rtl;
+  --start: right;
+  --end: left;
+  --float-start: right;
+  --float-end: left;
+  --text-align: right;
+}
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --primary: 221 83% 53%; /* رمادي غامق مائل للأزرق */
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222 47% 11%;
+  --accent: 25 95% 53%; /* برتقالي دافئ */
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --ring: 215 20.2% 65.1%;
+  --radius: 0.5rem;
+  --success: 142 76% 36%;
+  --success-foreground: 355 100% 100%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 355 100% 100%;
+  --info: 198 93% 60%;
+  --info-foreground: 222 47% 11%;
+
+  /* Chart colors */
+  --chart-1: 221 83% 53%;
+  --chart-2: 25 95% 53%;
+  --chart-3: 142 76% 36%;
+  --chart-4: 262 83% 58%;
+  --chart-5: 198 93% 60%;
+
+  /* Sidebar colors */
+  --sidebar-background: 222 47% 11%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-muted: 217 33% 17%;
+  --sidebar-muted-foreground: 215 20.2% 65.1%;
+  --sidebar-primary: 221 83% 53%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 25 95% 53%;
+  --sidebar-accent-foreground: 0 0% 0%;
+  --sidebar-border: 216 34% 17%;
+  --sidebar-ring: 224 76% 48%;
+}
+
+.dark {
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --popover: 222 47% 11%;
+  --popover-foreground: 210 40% 98%;
+  --card: 222 47% 11%;
+  --card-foreground: 210 40% 98%;
+  --border: 216 34% 17%;
+  --input: 216 34% 17%;
+  --primary: 221 83% 53%; /* نفس اللون الأساسي */
+  --primary-foreground: 210 40% 98%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --accent: 25 95% 53%; /* نفس لون التأكيد */
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 215 20.2% 65.1%;
+  --success: 142 70% 29%;
+  --success-foreground: 210 40% 98%;
+  --warning: 35 92% 43%;
+  --warning-foreground: 210 40% 98%;
+  --info: 198 93% 48%;
+  --info-foreground: 210 40% 98%;
+  
+  /* Chart colors - dark mode */
+  --chart-1: 221 83% 60%;
+  --chart-2: 25 95% 60%;
+  --chart-3: 142 70% 50%;
+  --chart-4: 262 83% 65%;
+  --chart-5: 198 93% 60%;
+
+  /* Sidebar colors - dark mode */
+  --sidebar-background: 224 71% 4%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-muted: 223 47% 11%;
+  --sidebar-muted-foreground: 215 20.2% 65.1%;
+  --sidebar-primary: 221 83% 53%;
+  --sidebar-primary-foreground: 210 40% 98%;
+  --sidebar-accent: 25 95% 53%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-border: 216 34% 17%;
+  --sidebar-ring: 224 76% 48%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+/* Custom classes */
+.scholarship-card-image {
+  height: 12rem;
+  object-fit: cover;
+}
+
+.article-card-image {
+  height: 12rem;
+  object-fit: cover;
+}
+
+.success-story-image {
+  height: 16rem;
+  object-fit: cover;
+}
+
+@media (min-width: 768px) {
+  .success-story-image {
+    height: 100%;
+  }
+}
+
+/* تحسينات عامة للموقع */
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.5s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.5s ease-out;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.5s ease-out;
+}
+
+/* تحسينات زر دليل التقديم */
+.guide-btn span {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.guide-btn:hover span {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.guide-btn:not(:hover) span {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* تحسينات لمظهر البطاقات والأزرار */
+.card-hover {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+/* تأثيرات الأزرار */
+.button-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.button-hover:hover {
+  transform: translateY(-2px);
+}
+
+.button-hover:active {
+  transform: translateY(0);
+}
+
+/* تحسين الروابط */
+.link-hover {
+  position: relative;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.link-hover::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  bottom: -2px;
+  left: 0;
+  background-color: hsl(var(--primary));
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.3s ease;
+}
+
+.link-hover:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* مظهر للبطاقات المميزة */
+.featured-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.featured-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 40px;
+  width: 40px;
+  background-color: hsl(var(--accent));
+  transform: rotate(45deg) translate(15px, -20px);
+  z-index: 1;
+}
+
+/* إضافة ظلال ناعمة */
+.shadow-soft {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+.shadow-medium {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+}
+
+/* تحسينات الصور */
+.image-hover {
+  transition: transform 0.5s ease;
+  overflow: hidden;
+}
+
+.image-hover img {
+  transition: transform 0.5s ease;
+}
+
+.image-hover:hover img {
+  transform: scale(1.05);
+}
+
+/* تحسينات RTL */
+.rtl-flip {
+  transform: scaleX(-1);
+}
+
+/* تحسينات صور محرر النصوص الغني */
+.rich-editor-image {
+  max-width: 100%;
+  height: auto;
+  margin: 1rem 0;
+  border-radius: 0.375rem;
+  display: block;
+}
+
+/* إضافة إطار للصور عند تحديدها في المحرر */
+.ProseMirror-selectednode img {
+  outline: 2px solid hsl(var(--primary));
+  border-radius: 0.375rem;
+}
+
+/* ضبط اتجاه النص والمكونات */
+[dir="rtl"] .link-hover::after {
+  right: 0;
+  left: auto;
+  transform-origin: left;
+}
+
+[dir="rtl"] .link-hover:hover::after {
+  transform-origin: right;
+}
+
+/* ضبط الهوامش والحشوات للـ RTL */
+[dir="rtl"] .ml-1, 
+[dir="rtl"] .ml-2, 
+[dir="rtl"] .ml-3, 
+[dir="rtl"] .ml-4, 
+[dir="rtl"] .ml-5, 
+[dir="rtl"] .ml-6,
+[dir="rtl"] .ml-8,
+[dir="rtl"] .ml-10 {
+  margin-left: 0;
+}
+
+[dir="rtl"] .ml-1 { margin-right: 0.25rem; }
+[dir="rtl"] .ml-2 { margin-right: 0.5rem; }
+[dir="rtl"] .ml-3 { margin-right: 0.75rem; }
+[dir="rtl"] .ml-4 { margin-right: 1rem; }
+[dir="rtl"] .ml-5 { margin-right: 1.25rem; }
+[dir="rtl"] .ml-6 { margin-right: 1.5rem; }
+[dir="rtl"] .ml-8 { margin-right: 2rem; }
+[dir="rtl"] .ml-10 { margin-right: 2.5rem; }
+
+[dir="rtl"] .mr-1, 
+[dir="rtl"] .mr-2, 
+[dir="rtl"] .mr-3, 
+[dir="rtl"] .mr-4, 
+[dir="rtl"] .mr-5, 
+[dir="rtl"] .mr-6,
+[dir="rtl"] .mr-8,
+[dir="rtl"] .mr-10 {
+  margin-right: 0;
+}
+
+[dir="rtl"] .mr-1 { margin-left: 0.25rem; }
+[dir="rtl"] .mr-2 { margin-left: 0.5rem; }
+[dir="rtl"] .mr-3 { margin-left: 0.75rem; }
+[dir="rtl"] .mr-4 { margin-left: 1rem; }
+[dir="rtl"] .mr-5 { margin-left: 1.25rem; }
+[dir="rtl"] .mr-6 { margin-left: 1.5rem; }
+[dir="rtl"] .mr-8 { margin-left: 2rem; }
+[dir="rtl"] .mr-10 { margin-left: 2.5rem; }
+
+/* ضبط الدوران لأيقونات الأسهم */
+[dir="rtl"] .rotate-180-rtl {
+  transform: rotate(180deg);
+}
+
+/* ضبط اتجاه التمرير للعناصر */
+[dir="rtl"] .overflow-x-auto {
+  direction: rtl;
+}
+
+/* تحسين الرسوم المتحركة للـ RTL */
+[dir="rtl"] .animate-slide-in-right {
+  animation-name: slideInLeft;
+}
+
+[dir="rtl"] .animate-slide-in-left {
+  animation-name: slideInRight;
+}

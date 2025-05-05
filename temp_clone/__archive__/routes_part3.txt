@@ -1,0 +1,698 @@
+    } catch (error) {
+      console.error("Error updating social media settings:", error);
+      res.status(500).json({ message: "Failed to update social media settings", error: (error as Error).message });
+    }
+  });
+  
+  // تحديث إعدادات الصفحة الرئيسية فقط (إظهار/إخفاء الأقسام)
+  app.patch("/api/site-settings/homepage", isAdmin, async (req, res) => {
+    try {
+      console.log("Updating homepage settings:", JSON.stringify(req.body, null, 2));
+      
+      // نعين قيم افتراضية لكل القيم البوليانية
+      const booleanData = {
+        showHeroSection: true,
+        showFeaturedScholarships: true, // دائما true لإصلاح المشكلة
+        showSearchSection: true,
+        showCategoriesSection: true,
+        showCountriesSection: true,
+        showLatestArticles: true,
+        showSuccessStories: true,
+        showNewsletterSection: true,
+        showStatisticsSection: true,
+        showPartnersSection: true,
+        enableNewsletter: true,
+        enableScholarshipSearch: true
+      };
+      
+      // نستخدم القيم من req.body إذا كانت موجودة وصالحة
+      // لكن نضمن أن القيم صحيحة بهذه الطريقة
+      
+      // المصادقة والتحويل إلى النوع الصحيح
+      const data = insertSiteSettingsSchema.partial().parse(booleanData);
+      
+      console.log("Processing homepage settings with fixed boolean values:", JSON.stringify(data, null, 2));
+      
+      // تحديث الإعدادات في قاعدة البيانات
+      const settings = await storage.updateSiteSettings(data);
+      console.log("Homepage settings updated successfully:", settings);
+      
+      // إرجاع الإعدادات المحدثة
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating homepage settings:", error);
+      res.status(500).json({ message: "Failed to update homepage settings", error: (error as Error).message });
+    }
+  });
+  
+  // تحديث عناوين الأقسام فقط
+  app.patch("/api/site-settings/sections", isAdmin, async (req, res) => {
+    try {
+      console.log("Updating section titles and descriptions:", JSON.stringify(req.body, null, 2));
+      
+      const data = insertSiteSettingsSchema.partial().parse({
+        heroTitle: req.body.heroTitle,
+        heroDescription: req.body.heroDescription,
+        featuredScholarshipsTitle: req.body.featuredScholarshipsTitle,
+        featuredScholarshipsDescription: req.body.featuredScholarshipsDescription,
+        categoriesSectionTitle: req.body.categoriesSectionTitle,
+        categoriesSectionDescription: req.body.categoriesSectionDescription,
+        countriesSectionTitle: req.body.countriesSectionTitle,
+        countriesSectionDescription: req.body.countriesSectionDescription,
+        latestArticlesTitle: req.body.latestArticlesTitle,
+        latestArticlesDescription: req.body.latestArticlesDescription,
+        successStoriesTitle: req.body.successStoriesTitle,
+        successStoriesDescription: req.body.successStoriesDescription,
+        newsletterSectionTitle: req.body.newsletterSectionTitle,
+        newsletterSectionDescription: req.body.newsletterSectionDescription,
+        statisticsSectionTitle: req.body.statisticsSectionTitle,
+        statisticsSectionDescription: req.body.statisticsSectionDescription,
+        partnersSectionTitle: req.body.partnersSectionTitle,
+        partnersSectionDescription: req.body.partnersSectionDescription
+      });
+      
+      const settings = await storage.updateSiteSettings(data);
+      console.log("Section titles updated successfully");
+      
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating section titles:", error);
+      res.status(500).json({ message: "Failed to update section titles", error: (error as Error).message });
+    }
+  });
+
+  // Analytics routes
+  app.get("/api/analytics/visits", isAdmin, async (req, res) => {
+    try {
+      const period = req.query.period as string || 'monthly';
+      const data = await storage.getVisitStats(period);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.get("/api/analytics/posts", isAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getPostStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.get("/api/analytics/scholarships", isAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getScholarshipStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.get("/api/analytics/traffic-sources", isAdmin, async (req, res) => {
+    try {
+      const sources = await storage.getTrafficSources();
+      res.json(sources);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.get("/api/analytics/top-content", isAdmin, async (req, res) => {
+    try {
+      const type = req.query.type as string || 'posts';
+      const limit = parseInt(req.query.limit as string || '5');
+      const content = await storage.getTopContent(type, limit);
+      res.json(content);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.get("/api/analytics/dashboard", isAdmin, async (req, res) => {
+    try {
+      // جمع كل بيانات التحليلات في طلب واحد للوحة المعلومات
+      const period = req.query.period as string || 'monthly';
+      
+      const [visitStats, postStats, scholarshipStats, trafficSources, topPosts, topScholarships] = await Promise.all([
+        storage.getVisitStats(period),
+        storage.getPostStats(),
+        storage.getScholarshipStats(),
+        storage.getTrafficSources(),
+        storage.getTopContent('posts', 5),
+        storage.getTopContent('scholarships', 5)
+      ]);
+      
+      res.json({
+        visitStats,
+        postStats,
+        scholarshipStats,
+        trafficSources,
+        topContent: {
+          posts: topPosts,
+          scholarships: topScholarships
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  // Static Pages Routes
+  // إنشاء صفحة ثابتة جديدة (مدير فقط)
+  app.post("/api/pages", isAdmin, async (req, res) => {
+    try {
+      const data = insertPageSchema.parse(req.body);
+      const page = await storage.createPage(data);
+      res.status(201).json(page);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  // الحصول على جميع الصفحات الثابتة للإدارة (مدير فقط)
+  app.get("/api/admin/pages", isAdmin, async (req, res) => {
+    try {
+      const pages = await storage.listPages();
+      res.json(pages);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  // الحصول على جميع الصفحات الثابتة المنشورة للعرض في الواجهة الأمامية
+  app.get("/api/pages", async (req, res) => {
+    try {
+      // تصفية حسب المكان: الرأس أو التذييل أو كل الصفحات المنشورة
+      const showInHeader = req.query.header === "true";
+      const showInFooter = req.query.footer === "true";
+      
+      const filters: {
+        isPublished: boolean;
+        showInHeader?: boolean;
+        showInFooter?: boolean;
+      } = {
+        isPublished: true
+      };
+      
+      if (req.query.header !== undefined) {
+        filters.showInHeader = showInHeader;
+      }
+      
+      if (req.query.footer !== undefined) {
+        filters.showInFooter = showInFooter;
+      }
+      
+      const pages = await storage.listPages(filters);
+      res.json(pages);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  // الحصول على صفحة ثابتة محددة بواسطة المعرف (مدير فقط للصفحات غير المنشورة)
+  app.get("/api/pages/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "معرف الصفحة غير صالح" });
+      }
+      
+      const page = await storage.getPage(id);
+      if (!page) {
+        return res.status(404).json({ message: "الصفحة غير موجودة" });
+      }
+      
+      // إذا كانت الصفحة غير منشورة، يجب أن يكون المستخدم مديرًا
+      if (!page.isPublished && (!req.isAuthenticated() || (req.user as User).role !== "admin")) {
+        return res.status(403).json({ message: "غير مصرح بالوصول" });
+      }
+      
+      res.json(page);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  // الحصول على صفحة ثابتة محددة بواسطة الرابط المختصر
+  app.get("/api/pages/slug/:slug", async (req, res) => {
+    try {
+      const slug = req.params.slug;
+      const page = await storage.getPageBySlug(slug);
+      
+      if (!page) {
+        return res.status(404).json({ message: "الصفحة غير موجودة" });
+      }
+      
+      // إذا كانت الصفحة غير منشورة، يجب أن يكون المستخدم مديرًا
+      if (!page.isPublished && (!req.isAuthenticated() || (req.user as User).role !== "admin")) {
+        return res.status(403).json({ message: "غير مصرح بالوصول" });
+      }
+      
+      res.json(page);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  // تحديث صفحة ثابتة (مدير فقط)
+  app.put("/api/pages/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "معرف الصفحة غير صالح" });
+      }
+      
+      const data = insertPageSchema.partial().parse(req.body);
+      const page = await storage.updatePage(id, data);
+      
+      if (!page) {
+        return res.status(404).json({ message: "الصفحة غير موجودة" });
+      }
+      
+      res.json(page);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  // حذف صفحة ثابتة (مدير فقط)
+  app.delete("/api/pages/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "معرف الصفحة غير صالح" });
+      }
+      
+      const success = await storage.deletePage(id);
+      if (!success) {
+        return res.status(404).json({ message: "الصفحة غير موجودة" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  // Menu Routes
+  app.post("/api/menus", isAdmin, async (req, res) => {
+    try {
+      const data = insertMenuSchema.parse(req.body);
+      const menu = await storage.createMenu(data);
+      res.status(201).json(menu);
+    } catch (error) {
+      console.error("Error creating menu:", error);
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.get("/api/menus", async (req, res) => {
+    try {
+      const menus = await storage.listMenus();
+      res.json(menus);
+    } catch (error) {
+      console.error("Error fetching menus:", error);
+      res.status(500).json({ message: "Failed to fetch menus", error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/menus/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid menu ID" });
+      }
+      const menu = await storage.getMenu(id);
+      if (!menu) {
+        return res.status(404).json({ message: "Menu not found" });
+      }
+      res.json(menu);
+    } catch (error) {
+      console.error("Error fetching menu:", error);
+      res.status(500).json({ message: "Failed to fetch menu", error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/menus/location/:location", async (req, res) => {
+    try {
+      const location = req.params.location;
+      if (!["header", "footer", "sidebar", "mobile"].includes(location)) {
+        return res.status(400).json({ message: "Invalid menu location" });
+      }
+      const menu = await storage.getMenuByLocation(location);
+      if (!menu) {
+        return res.status(404).json({ message: "Menu not found for this location" });
+      }
+      res.json(menu);
+    } catch (error) {
+      console.error("Error fetching menu by location:", error);
+      res.status(500).json({ message: "Failed to fetch menu", error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/menus/slug/:slug", async (req, res) => {
+    try {
+      const slug = req.params.slug;
+      const menu = await storage.getMenuBySlug(slug);
+      if (!menu) {
+        return res.status(404).json({ message: "Menu not found" });
+      }
+      res.json(menu);
+    } catch (error) {
+      console.error("Error fetching menu by slug:", error);
+      res.status(500).json({ message: "Failed to fetch menu", error: (error as Error).message });
+    }
+  });
+
+  // GET أساسي للهيكل لاسترجاع جميع القوائم
+  app.get("/api/menu-structure", async (req, res) => {
+    try {
+      const locations = ["header", "footer", "sidebar", "mobile"];
+      const structures = {};
+      
+      for (const loc of locations) {
+        try {
+          const structure = await storage.getMenuStructure(loc);
+          if (structure) {
+            structures[loc] = structure;
+          }
+        } catch (innerError) {
+          console.error(`Error fetching menu structure for ${loc}:`, innerError);
+          // استمر في المحاولة مع المواقع الأخرى
+        }
+      }
+      
+      res.json(structures);
+    } catch (error) {
+      console.error("Error fetching all menu structures:", error);
+      res.status(500).json({ message: "Failed to fetch menu structures", error: (error as Error).message });
+    }
+  });
+
+  // GET محدد للهيكل بناءً على الموقع
+  app.get("/api/menu-structure/:location", async (req, res) => {
+    try {
+      const location = req.params.location;
+      if (!["header", "footer", "sidebar", "mobile"].includes(location)) {
+        return res.status(400).json({ message: "Invalid menu location" });
+      }
+      const structure = await storage.getMenuStructure(location);
+      if (!structure) {
+        return res.status(404).json({ message: "Menu structure not found for this location" });
+      }
+      res.json(structure);
+    } catch (error) {
+      console.error("Error fetching menu structure:", error);
+      res.status(500).json({ message: "Failed to fetch menu structure", error: (error as Error).message });
+    }
+  });
+
+  app.put("/api/menus/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid menu ID" });
+      }
+      const data = insertMenuSchema.partial().parse(req.body);
+      const menu = await storage.updateMenu(id, data);
+      if (!menu) {
+        return res.status(404).json({ message: "Menu not found" });
+      }
+      res.json(menu);
+    } catch (error) {
+      console.error("Error updating menu:", error);
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.delete("/api/menus/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid menu ID" });
+      }
+      const success = await storage.deleteMenu(id);
+      if (!success) {
+        return res.status(404).json({ message: "Menu not found" });
+      }
+      res.json({ message: "Menu deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting menu:", error);
+      res.status(500).json({ message: "Failed to delete menu", error: (error as Error).message });
+    }
+  });
+
+  // Menu Item Routes
+  app.post("/api/menu-items", isAdmin, async (req, res) => {
+    try {
+      const data = insertMenuItemSchema.parse(req.body);
+      const menuItem = await storage.createMenuItem(data);
+      res.status(201).json(menuItem);
+    } catch (error) {
+      console.error("Error creating menu item:", error);
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.get("/api/menu-items/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid menu item ID" });
+      }
+      const menuItem = await storage.getMenuItem(id);
+      if (!menuItem) {
+        return res.status(404).json({ message: "Menu item not found" });
+      }
+      res.json(menuItem);
+    } catch (error) {
+      console.error("Error fetching menu item:", error);
+      res.status(500).json({ message: "Failed to fetch menu item", error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/menu-items/menu/:menuId", async (req, res) => {
+    try {
+      const menuId = parseInt(req.params.menuId);
+      if (isNaN(menuId)) {
+        return res.status(400).json({ message: "Invalid menu ID" });
+      }
+      
+      let parentId: number | null | undefined = undefined;
+      if (req.query.parentId !== undefined) {
+        if (req.query.parentId === 'null') {
+          parentId = null;
+        } else {
+          const parsedParentId = parseInt(req.query.parentId as string);
+          if (!isNaN(parsedParentId)) {
+            parentId = parsedParentId;
+          } else {
+            return res.status(400).json({ message: "Invalid parent ID" });
+          }
+        }
+      }
+      
+      const menuItems = await storage.listMenuItems(menuId, parentId);
+      res.json(menuItems);
+    } catch (error) {
+      console.error("Error fetching menu items:", error);
+      res.status(500).json({ message: "Failed to fetch menu items", error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/menu-items-with-details/menu/:menuId", async (req, res) => {
+    try {
+      const menuId = parseInt(req.params.menuId);
+      if (isNaN(menuId)) {
+        return res.status(400).json({ message: "Invalid menu ID" });
+      }
+      const menuItems = await storage.getAllMenuItemsWithDetails(menuId);
+      res.json(menuItems);
+    } catch (error) {
+      console.error("Error fetching menu items with details:", error);
+      res.status(500).json({ message: "Failed to fetch menu items with details", error: (error as Error).message });
+    }
+  });
+
+  app.put("/api/menu-items/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid menu item ID" });
+      }
+      const data = insertMenuItemSchema.partial().parse(req.body);
+      const menuItem = await storage.updateMenuItem(id, data);
+      if (!menuItem) {
+        return res.status(404).json({ message: "Menu item not found" });
+      }
+      res.json(menuItem);
+    } catch (error) {
+      console.error("Error updating menu item:", error);
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.delete("/api/menu-items/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid menu item ID" });
+      }
+      const success = await storage.deleteMenuItem(id);
+      if (!success) {
+        return res.status(404).json({ message: "Menu item not found" });
+      }
+      res.json({ message: "Menu item deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting menu item:", error);
+      res.status(500).json({ message: "Failed to delete menu item", error: (error as Error).message });
+    }
+  });
+
+  // Media routes
+  // Get a list of all media files
+  app.get("/api/media", async (req, res) => {
+    try {
+      const mimeType = req.query.mimeType as string | undefined;
+      const filters = mimeType ? { mimeType } : undefined;
+      const mediaFiles = await storage.listMediaFiles(filters);
+      res.json(mediaFiles);
+    } catch (error) {
+      console.error("Error fetching media files:", error);
+      res.status(500).json({ message: "Failed to fetch media files", error: (error as Error).message });
+    }
+  });
+
+  // Get a single media file by ID
+  app.get("/api/media/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid media file ID" });
+      }
+      const mediaFile = await storage.getMediaFile(id);
+      if (!mediaFile) {
+        return res.status(404).json({ message: "Media file not found" });
+      }
+      res.json(mediaFile);
+    } catch (error) {
+      console.error("Error fetching media file:", error);
+      res.status(500).json({ message: "Failed to fetch media file", error: (error as Error).message });
+    }
+  });
+
+  // Upload a new media file
+  app.post("/api/media", isAdmin, upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      // Process the uploaded file
+      const file = req.file;
+      
+      // استخراج أبعاد الصورة إذا كانت الملف هو صورة
+      let width = null;
+      let height = null;
+      
+      if (file.mimetype.startsWith('image/')) {
+        try {
+          const filePath = path.join(uploadsDir, file.filename);
+          const dimensions = sizeOf(filePath);
+          width = dimensions.width;
+          height = dimensions.height;
+          console.log(`Image dimensions: ${width}x${height}`);
+        } catch (err) {
+          console.error("Error getting image dimensions:", err);
+          // استمر في المعالجة حتى لو لم يتم استخراج الأبعاد
+        }
+      }
+      
+      // Use relative URL instead of absolute URL to avoid server-specific paths
+      const fileData = {
+        filename: file.filename,
+        originalFilename: file.originalname,
+        url: `/uploads/${file.filename}`,
+        mimeType: file.mimetype,
+        size: file.size,
+        width,
+        height,
+        title: req.body.title || file.originalname,
+        alt: req.body.alt || ''
+      };
+
+      console.log("Uploading file with data:", fileData);
+      
+      // Save media file to database
+      const mediaFile = await storage.createMediaFile(fileData);
+      
+      // Return success response
+      res.status(201).json(mediaFile);
+    } catch (error) {
+      console.error("Error creating media file:", error);
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  // Update an existing media file
+  app.put("/api/media/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid media file ID" });
+      }
+      const data = insertMediaFileSchema.partial().parse(req.body);
+      const mediaFile = await storage.updateMediaFile(id, data);
+      if (!mediaFile) {
+        return res.status(404).json({ message: "Media file not found" });
+      }
+      res.json(mediaFile);
+    } catch (error) {
+      console.error("Error updating media file:", error);
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  // Delete a media file
+  app.delete("/api/media/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid media file ID" });
+      }
+      const success = await storage.deleteMediaFile(id);
+      if (!success) {
+        return res.status(404).json({ message: "Media file not found" });
+      }
+      res.json({ message: "Media file deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting media file:", error);
+      res.status(500).json({ message: "Failed to delete media file", error: (error as Error).message });
+    }
+  });
+
+  // Bulk delete media files
+  app.post("/api/media/bulk-delete", isAdmin, async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.some(id => typeof id !== 'number')) {
+        return res.status(400).json({ message: "Invalid IDs format. Expected an array of numbers." });
+      }
+      
+      const success = await storage.bulkDeleteMediaFiles(ids);
+      if (!success) {
+        return res.status(500).json({ message: "Failed to delete some media files" });
+      }
+      
+      res.json({ message: "Media files deleted successfully" });
+    } catch (error) {
+      console.error("Error bulk deleting media files:", error);
+      res.status(500).json({ message: "Failed to delete media files", error: (error as Error).message });
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}

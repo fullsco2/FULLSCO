@@ -1,0 +1,266 @@
+# استراتيجية هيكلة جزء العميل (Client)
+
+بناءً على التقدم الذي أحرزناه في إعادة هيكلة الخادم (Server) باستخدام نمط MVC+Services+Repositories، نقترح هيكلة مشابهة ومتناسقة للجزء الأمامي (Client) للحفاظ على اتساق وتنظيم المشروع بشكل كامل.
+
+## الهيكل المقترح لجزء العميل (Client)
+
+### 1. الهيكل التنظيمي للمجلدات
+
+```
+client/
+├── src/
+│   ├── assets/                  # الموارد الثابتة (صور، أيقونات، خطوط)
+│   ├── components/              # المكونات القابلة لإعادة الاستخدام
+│   │   ├── common/              # المكونات العامة (أزرار، حقول إدخال، الخ)
+│   │   ├── layouts/             # مخططات الصفحات
+│   │   ├── admin/               # مكونات خاصة بلوحة التحكم
+│   │   └── ui/                  # واجهة المستخدم الأساسية (shadcn)
+│   ├── contexts/                # سياقات React (مثل Auth, Theme, etc)
+│   ├── hooks/                   # Hooks مخصصة لاستخدامات متعددة
+│   │   ├── api/                 # Hooks للتعامل مع API محددة
+│   │   └── common/              # Hooks عامة (مثل useMediaQuery, useDarkMode)
+│   ├── lib/                     # أدوات وخدمات مساعدة
+│   │   ├── api.ts               # وظائف التعامل مع API
+│   │   ├── validation.ts        # مخططات التحقق 
+│   │   └── utils.ts             # وظائف مساعدة متنوعة
+│   ├── pages/                   # صفحات التطبيق
+│   │   ├── admin/               # صفحات لوحة التحكم
+│   │   └── public/              # صفحات العرض العام
+│   ├── services/                # خدمات مسؤولة عن التعامل مع API
+│   │   ├── auth.service.ts
+│   │   ├── scholarships.service.ts
+│   │   └── etc...
+│   ├── store/                   # إدارة حالة التطبيق (اختياري)
+│   ├── types/                   # تعريفات الأنواع TypeScript
+│   ├── App.tsx                  # المكون الرئيسي للتطبيق
+│   ├── main.tsx                 # نقطة الدخول
+│   └── index.css                # الأنماط العامة
+```
+
+### 2. نهج تنظيمي حسب المميزات (Feature-based Organization)
+
+كبديل، يمكننا تنظيم الكود حسب المميزات الوظيفية بدلاً من النوع:
+
+```
+client/
+├── src/
+│   ├── core/                    # المكونات والوظائف الأساسية
+│   │   ├── api/                 # التعامل مع API
+│   │   ├── auth/                # المصادقة وإدارة الجلسات
+│   │   ├── ui/                  # مكونات واجهة المستخدم الأساسية
+│   │   └── utils/               # أدوات مساعدة
+│   ├── features/                # المميزات الوظيفية للتطبيق
+│   │   ├── scholarships/        # كل ما يتعلق بالمنح الدراسية
+│   │   │   ├── components/      # مكونات خاصة بالمنح
+│   │   │   ├── hooks/           # hooks خاصة بالمنح
+│   │   │   ├── services/        # خدمات API للمنح
+│   │   │   └── pages/           # صفحات المنح
+│   │   ├── articles/            # كل ما يتعلق بالمقالات
+│   │   ├── media/               # كل ما يتعلق بمكتبة الوسائط
+│   │   └── settings/            # كل ما يتعلق بالإعدادات
+│   ├── App.tsx
+│   ├── main.tsx
+│   └── index.css
+```
+
+## استراتيجيات ومبادئ تنظيمية
+
+### 1. تطبيق مبدأ المسؤولية الواحدة (Single Responsibility)
+
+- كل مكوّن أو خدمة تكون مسؤولة عن وظيفة واحدة محددة
+- تقسيم المكونات الكبيرة إلى مكونات أصغر أكثر تخصصاً
+
+### 2. استخدام Custom Hooks
+
+- إنشاء hooks مخصصة لعمليات API المتكررة
+- فصل منطق العمل عن واجهة المستخدم
+- مثال:
+  ```typescript
+  // hooks/api/useScholarships.ts
+  export function useScholarships() {
+    const [scholarships, setScholarships] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    async function fetchScholarships(filters) {
+      setLoading(true);
+      try {
+        const data = await scholarshipsService.getAll(filters);
+        setScholarships(data);
+      } catch (err) {
+        setError(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    return { scholarships, loading, error, fetchScholarships };
+  }
+  ```
+
+### 3. تنظيم خدمات API
+
+- إنشاء خدمات منفصلة لكل نوع من أنواع البيانات
+- كل خدمة تكون مسؤولة عن التعامل مع نقاط النهاية API المتعلقة بها
+- استخدام class أو وظائف مستقلة:
+
+```typescript
+// services/scholarships.service.ts
+import { apiRequest } from '@/lib/api';
+import type { Scholarship, ScholarshipFilters } from '@/types';
+
+export const scholarshipsService = {
+  async getAll(filters?: ScholarshipFilters) {
+    const response = await apiRequest.get('/api/scholarships', { params: filters });
+    return response.data;
+  },
+
+  async getById(id: number) {
+    const response = await apiRequest.get(`/api/scholarships/${id}`);
+    return response.data;
+  },
+
+  async create(data: Scholarship) {
+    const response = await apiRequest.post('/api/scholarships', data);
+    return response.data;
+  },
+
+  // المزيد من الوظائف...
+};
+```
+
+### 4. تجريد التعامل مع API
+
+- إنشاء طبقة تجريد للتعامل مع API تتعامل مع الأخطاء والتحقق من الاستجابة
+- يمكن أن تتضمن إرسال التوكن بشكل تلقائي، تحديث التوكن عند انتهاء صلاحيته، الخ
+
+```typescript
+// lib/api.ts
+import axios from 'axios';
+import { toast } from '@/components/ui/toast';
+
+const api = axios.create({
+  baseURL: '/',
+  timeout: 30000,
+});
+
+// اعتراض الطلبات لإضافة التوكن
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('authToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// اعتراض الاستجابات للتعامل مع الأخطاء بشكل موحد
+api.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    if (error.response) {
+      const { status, data } = error.response;
+      
+      if (status === 401) {
+        // التعامل مع أخطاء المصادقة
+        localStorage.removeItem('authToken');
+        window.location.href = '/login';
+      } else if (status === 403) {
+        toast({
+          title: 'خطأ في الصلاحيات',
+          description: 'ليس لديك صلاحية للوصول إلى هذا المورد',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'خطأ',
+          description: data.message || 'حدث خطأ ما، يرجى المحاولة مرة أخرى',
+          variant: 'destructive',
+        });
+      }
+    } else {
+      toast({
+        title: 'خطأ في الاتصال',
+        description: 'تعذر الاتصال بالخادم، يرجى التحقق من اتصالك بالإنترنت',
+        variant: 'destructive',
+      });
+    }
+    return Promise.reject(error);
+  }
+);
+
+export const apiRequest = {
+  get: (url, config) => api.get(url, config),
+  post: (url, data, config) => api.post(url, data, config),
+  put: (url, data, config) => api.put(url, data, config),
+  patch: (url, data, config) => api.patch(url, data, config),
+  delete: (url, config) => api.delete(url, config),
+};
+```
+
+### 5. استخدام مكونات مشتركة عالية المستوى
+
+- إنشاء مكونات عامة يمكن استخدامها في جميع أنحاء التطبيق
+- تقليل تكرار الكود وتحسين اتساق واجهة المستخدم
+
+```typescript
+// components/common/DataTable.tsx
+interface DataTableProps<T> {
+  data: T[];
+  columns: Column<T>[];
+  isLoading?: boolean;
+  pagination?: {
+    currentPage: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
+  };
+  // المزيد من الخصائص...
+}
+
+export function DataTable<T>({ data, columns, isLoading, pagination }: DataTableProps<T>) {
+  // تنفيذ الجدول...
+}
+```
+
+## خطة التنفيذ
+
+لتنفيذ هذا الهيكل الجديد، نقترح اتباع النهج التدريجي التالي:
+
+### المرحلة 1: إنشاء الهيكل الأساسي (بدون نقل الكود)
+
+1. إنشاء المجلدات الرئيسية (components, services, hooks, etc.)
+2. إنشاء ملفات الخدمات والأدوات المشتركة الأساسية (api.ts, utils.ts)
+3. إنشاء custom hooks أساسية للتعامل مع الحالات المشتركة
+
+### المرحلة 2: نقل المكونات تدريجياً
+
+1. البدء بنقل المكونات الأساسية والأكثر استخداماً
+2. نقل المكونات الأخرى بالتدريج مع إجراء التعديلات اللازمة
+3. تحديث الاستيرادات في الملفات الأخرى
+
+### المرحلة 3: اختبار وتحسين
+
+1. اختبار التطبيق بشكل شامل بعد كل تغيير
+2. تحسين الأداء وحل أي مشكلات تنشأ
+3. تحسين التوثيق وإضافة تعليقات للكود
+
+## فوائد الهيكلة المقترحة
+
+1. **سهولة الصيانة**: تقسيم التطبيق إلى وحدات صغيرة يسهل فهمها وصيانتها
+2. **قابلية التوسع**: يمكن إضافة ميزات جديدة بسهولة ضمن الهيكل الحالي
+3. **إعادة الاستخدام**: المكونات والخدمات قابلة لإعادة الاستخدام في أجزاء مختلفة من التطبيق
+4. **اختبار أسهل**: وحدات مستقلة صغيرة يسهل اختبارها
+5. **تعاون الفريق**: يمكن للمطورين العمل على أجزاء مختلفة دون تضارب
+
+## أفضل الممارسات الإضافية
+
+1. استخدام TypeScript بشكل صارم لجميع المكونات والخدمات
+2. إنشاء وثائق للمكونات والخدمات المشتركة
+3. استخدام أدوات تحليل الكود مثل ESLint و Prettier
+4. تنفيذ اختبارات وحدة لاختبار المكونات والخدمات
+5. استخدام تقنيات تحسين الأداء مثل lazy loading و code splitting
+
+## الخلاصة
+
+تقدم هذه الاستراتيجية مسارًا واضحًا لإعادة هيكلة وتنظيم واجهة المستخدم بطريقة تتماشى مع هيكلة الخادم التي تم تنفيذها بنجاح. من خلال اتباع هذه الهيكلة والمبادئ، سنتمكن من تحسين جودة الكود وسهولة صيانته وتوسيعه في المستقبل، مما يضمن استدامة المشروع على المدى الطويل.
+
+الخطوات التالية هي وضع خطة زمنية للتنفيذ والبدء بإجراء التغييرات بشكل تدريجي مع التأكد من استمرار عمل التطبيق بشكل سليم خلال عملية إعادة الهيكلة.
