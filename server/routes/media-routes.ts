@@ -15,6 +15,9 @@ export function registerMediaRoutes(router: Router, apiPrefix: string) {
   router.get(`${apiPrefix}/media/:id(\\d+)`, controller.getMediaFile.bind(controller));
 
   // مسارات تتطلب مصادقة وصلاحيات المسؤول للكتابة
+  // إضافة مسار POST مباشر لـ /api/media
+  router.post(`${apiPrefix}/media`, isAuthenticated, isAdmin, controller.uploadMiddleware(), controller.uploadMediaFile.bind(controller));
+  // الإبقاء على المسار القديم للتوافق مع الشيفرة القديمة
   router.post(`${apiPrefix}/media/upload`, isAuthenticated, isAdmin, controller.uploadMiddleware(), controller.uploadMediaFile.bind(controller));
   router.put(`${apiPrefix}/media/:id(\\d+)`, isAuthenticated, isAdmin, controller.updateMediaFile.bind(controller));
   router.delete(`${apiPrefix}/media/:id(\\d+)`, isAuthenticated, isAdmin, controller.deleteMediaFile.bind(controller));

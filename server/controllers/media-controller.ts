@@ -106,13 +106,15 @@ export class MediaController {
         return;
       }
 
-      // إنشاء كائن البيانات للملف
+      // إنشاء كائن البيانات للملف مع إصلاح مسار الملف وإضافة رابط url
       const mediaFileData = {
-        filename: req.file.originalname,
+        filename: req.file.filename,
+        originalFilename: req.file.originalname,
         filePath: `/uploads/${req.file.filename}`,
-        fileSize: req.file.size,
+        url: `/uploads/${req.file.filename}`,
+        size: req.file.size,
         mimeType: req.file.mimetype,
-        altText: req.body.altText || req.file.originalname,
+        alt: req.body.alt || req.file.originalname,
         title: req.body.title || req.file.originalname,
         description: req.body.description || ''
       };
