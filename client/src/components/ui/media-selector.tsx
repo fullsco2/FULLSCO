@@ -59,7 +59,7 @@ export default function MediaSelector({
   const [selectedFile, setSelectedFile] = useState<MediaFile | null>(null);
   
   // استلام ملفات الوسائط من الخادم
-  const { data: mediaFiles, isLoading, isError } = useQuery<MediaFile[]>({
+  const { data: mediaResponse, isLoading, isError } = useQuery<{ success: boolean; data: MediaFile[] }>({
     queryKey: ['/api/media'],
     queryFn: async () => {
       try {
@@ -82,9 +82,12 @@ export default function MediaSelector({
       }
     },
   });
+
+  // استخراج مصفوفة الملفات من الاستجابة
+  const mediaFiles = mediaResponse?.data || [];
   
   // تصفية الملفات حسب البحث
-  const filteredFiles = mediaFiles?.filter(file => {
+  const filteredFiles = mediaFiles.filter(file => {
     if (!searchTerm) return true;
     
     const term = searchTerm.toLowerCase();
@@ -93,7 +96,7 @@ export default function MediaSelector({
       (file.title || '').toLowerCase().includes(term) ||
       (file.alt || '').toLowerCase().includes(term)
     );
-  }) || [];
+  });
   
   // عند اختيار ملف
   const handleSelect = (file: MediaFile) => {
