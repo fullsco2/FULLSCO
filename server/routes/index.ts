@@ -7,6 +7,7 @@ import partnersRoutes from './partners-routes';
 import scholarshipsRoutes from './scholarships-routes';
 import postsRoutes from './posts-routes';
 import successStoriesRoutes from './success-stories-routes';
+import categoriesRoutes from './categories-routes';
 
 /**
  * تسجيل جميع مسارات API
@@ -35,4 +36,7 @@ export function registerApiRoutes(app: Express, apiPrefix: string): void {
 
   // تسجيل مسارات قصص النجاح
   app.use(`${apiPrefix}/success-stories`, successStoriesRoutes);
+  
+  // تسجيل مسارات الفئات
+  app.use(`${apiPrefix}/categories`, categoriesRoutes);
 }
