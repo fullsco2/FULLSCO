@@ -142,20 +142,35 @@ const AdminScholarships = () => {
   const scholarships = scholarshipsResponse?.data || [];
 
   // Fetch related data
-  const { data: countries } = useQuery<Country[]>({
+  const { data: countriesResponse } = useQuery<{ success?: boolean, data?: Country[] } | Country[]>({
     queryKey: ["/api/countries"],
     enabled: isAuthenticated,
   });
+  
+  // استخراج الدول من البيانات المستجابة
+  const countries = Array.isArray(countriesResponse)
+    ? countriesResponse
+    : countriesResponse?.data || [];
 
-  const { data: levels } = useQuery<Level[]>({
+  const { data: levelsResponse } = useQuery<{ success?: boolean, data?: Level[] } | Level[]>({
     queryKey: ["/api/levels"],
     enabled: isAuthenticated,
   });
+  
+  // استخراج المستويات الدراسية من البيانات المستجابة
+  const levels = Array.isArray(levelsResponse)
+    ? levelsResponse
+    : levelsResponse?.data || [];
 
-  const { data: categories } = useQuery<Category[]>({
+  const { data: categoriesResponse } = useQuery<{ success?: boolean, data?: Category[] } | Category[]>({
     queryKey: ["/api/categories"],
     enabled: isAuthenticated,
   });
+  
+  // استخراج التصنيفات من البيانات المستجابة
+  const categories = Array.isArray(categoriesResponse)
+    ? categoriesResponse
+    : categoriesResponse?.data || [];
 
   // Delete scholarship mutation
   const deleteMutation = useMutation({

@@ -105,10 +105,15 @@ const EditSuccessStory = () => {
   });
 
   // جلب المنح الدراسية للقائمة المنسدلة
-  const { data: scholarships = [] } = useQuery<Scholarship[]>({
+  const { data: scholarshipsResponse } = useQuery<{ success: boolean, data: Scholarship[] } | Scholarship[]>({
     queryKey: ['/api/scholarships'],
     enabled: isAuthenticated,
   });
+  
+  // استخراج المنح الدراسية من الاستجابة
+  const scholarships = Array.isArray(scholarshipsResponse)
+    ? scholarshipsResponse
+    : scholarshipsResponse?.data || [];
 
   // إعداد نموذج react-hook-form
   const form = useForm<FormValues>({
