@@ -833,7 +833,7 @@ export default function MediaManagementPage() {
             </DialogHeader>
             <Form {...uploadForm}>
               <form onSubmit={uploadForm.handleSubmit(handleUploadFile)} className="space-y-4">
-                <div className="grid w-full max-w-sm items-center gap-1.5">
+                <div className="grid w-full items-center gap-1.5">
                   <FormLabel htmlFor="file-upload">الملف</FormLabel>
                   <Input
                     id="file-upload"
@@ -842,6 +842,15 @@ export default function MediaManagementPage() {
                     onChange={handleFileChange}
                     ref={fileInputRef}
                   />
+                  {uploadForm.getValues().file && (
+                    <div className="mt-1 p-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded text-xs flex items-center">
+                      <CheckCircle className="h-4 w-4 ml-2" />
+                      <div>
+                        <p>تم اختيار الملف:</p>
+                        <p className="font-bold mt-1">{uploadForm.getValues().file.name}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 <FormField
@@ -881,7 +890,7 @@ export default function MediaManagementPage() {
                 <DialogFooter>
                   <Button 
                     type="submit" 
-                    disabled={uploadMutation.isPending || !uploadForm.getValues('file')}
+                    disabled={uploadMutation.isPending || !uploadForm.getValues().file}
                   >
                     {uploadMutation.isPending ? 'جاري الرفع...' : 'رفع الملف'}
                   </Button>
