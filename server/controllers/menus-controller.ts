@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { MenusService } from "../services/menus-service";
 import { z } from "zod";
-import { menusInsertSchema, menuItemsInsertSchema } from "@shared/schema";
+import { insertMenuSchema, insertMenuItemSchema } from "@shared/schema";
 
 /**
  * وحدة التحكم بالقوائم

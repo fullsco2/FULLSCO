@@ -10,6 +10,7 @@ import successStoriesRoutes from './success-stories-routes';
 import categoriesRoutes from './categories-routes';
 import levelsRoutes from './levels-routes';
 import countriesRoutes from './countries-routes';
+import { registerMenusRoutes } from './menus-routes';
 
 /**
  * تسجيل جميع مسارات API
@@ -47,4 +48,7 @@ export function registerApiRoutes(app: Express, apiPrefix: string): void {
   
   // تسجيل مسارات الدول
   app.use(`${apiPrefix}/countries`, countriesRoutes);
+  
+  // تسجيل مسارات القوائم
+  registerMenusRoutes(app, apiPrefix);
 }

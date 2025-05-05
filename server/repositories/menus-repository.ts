@@ -1,5 +1,5 @@
-import { db } from "@db";
-import { eq, sql } from "drizzle-orm";
+import { db } from "../db";
+import { eq, sql, isNull } from "drizzle-orm";
 import { 
   menus, 
   menuItems,
@@ -49,9 +49,10 @@ export class MenusRepository {
    */
   async getMenuByLocation(location: string): Promise<Menu | undefined> {
     try {
-      const result = await db.query.menus.findFirst({
-        where: eq(menus.location, location)
-      });
+      // استعلام مباشر نظراً لأن menus.location هو نوع enum
+      const [result] = await db.select().from(menus)
+        .where(sql`${menus.location} = ${location}`)
+        .limit(1);
       return result;
     } catch (error) {
       console.error("Error in getMenuByLocation:", error);

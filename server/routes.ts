@@ -48,7 +48,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     'success-stories', // قصص النجاح
     'categories',     // التصنيفات
     'levels',         // المستويات الدراسية
-    'countries'       // الدول
+    'countries',      // الدول
+    'menus'           // القوائم
   ];
 
   console.log('🚀 بدء تسجيل المسارات...');

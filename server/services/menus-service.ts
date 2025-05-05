@@ -4,8 +4,8 @@ import {
   InsertMenuItem,
   Menu,
   MenuItem,
-  menusInsertSchema,
-  menuItemsInsertSchema
+  insertMenuSchema,
+  insertMenuItemSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -44,9 +44,9 @@ export class MenusService {
   /**
    * إنشاء قائمة جديدة
    */
-  async createMenu(menuData: z.infer<typeof menusInsertSchema>): Promise<Menu> {
+  async createMenu(menuData: z.infer<typeof insertMenuSchema>): Promise<Menu> {
     // التحقق من صحة البيانات
-    const validatedData = menusInsertSchema.parse(menuData);
+    const validatedData = insertMenuSchema.parse(menuData);
     
     // إنشاء القائمة
     return this.repository.createMenu(validatedData);
@@ -55,7 +55,7 @@ export class MenusService {
   /**
    * تحديث قائمة موجودة
    */
-  async updateMenu(id: number, menuData: Partial<z.infer<typeof menusInsertSchema>>): Promise<Menu | undefined> {
+  async updateMenu(id: number, menuData: Partial<z.infer<typeof insertMenuSchema>>): Promise<Menu | undefined> {
     // التحقق من وجود القائمة
     const existingMenu = await this.repository.getMenu(id);
     if (!existingMenu) {
@@ -63,7 +63,7 @@ export class MenusService {
     }
 
     // التحقق من صحة البيانات
-    const validatedData = menusInsertSchema.partial().parse(menuData);
+    const validatedData = insertMenuSchema.partial().parse(menuData);
     
     // تحديث القائمة
     return this.repository.updateMenu(id, validatedData);
@@ -100,9 +100,9 @@ export class MenusService {
   /**
    * إنشاء عنصر قائمة جديد
    */
-  async createMenuItem(itemData: z.infer<typeof menuItemsInsertSchema>): Promise<MenuItem> {
+  async createMenuItem(itemData: z.infer<typeof insertMenuItemSchema>): Promise<MenuItem> {
     // التحقق من صحة البيانات
-    const validatedData = menuItemsInsertSchema.parse(itemData);
+    const validatedData = insertMenuItemSchema.parse(itemData);
     
     // التحقق من وجود القائمة
     const menu = await this.repository.getMenu(validatedData.menuId);
@@ -129,7 +129,7 @@ export class MenusService {
   /**
    * تحديث عنصر قائمة موجود
    */
-  async updateMenuItem(id: number, itemData: Partial<z.infer<typeof menuItemsInsertSchema>>): Promise<MenuItem | undefined> {
+  async updateMenuItem(id: number, itemData: Partial<z.infer<typeof insertMenuItemSchema>>): Promise<MenuItem | undefined> {
     // التحقق من وجود عنصر القائمة
     const existingItem = await this.repository.getMenuItem(id);
     if (!existingItem) {
@@ -137,7 +137,7 @@ export class MenusService {
     }
 
     // التحقق من صحة البيانات
-    const validatedData = menuItemsInsertSchema.partial().parse(itemData);
+    const validatedData = insertMenuItemSchema.partial().parse(itemData);
     
     // التحقق من وجود العنصر الأب (إذا تم تغييره)
     if (validatedData.parentId !== undefined && validatedData.parentId !== null) {
