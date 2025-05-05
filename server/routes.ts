@@ -46,7 +46,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     'scholarships',   // المنح الدراسية
     'posts',          // المقالات
     'success-stories', // قصص النجاح
-    'categories'      // التصنيفات
+    'categories',     // التصنيفات
+    'levels'          // المستويات الدراسية
   ];
 
   console.log('🚀 بدء تسجيل المسارات...');
@@ -241,21 +242,89 @@ export function registerLegacyRoutes(app: Express, migratedModules: string[] = [
     });
   }
 
-  // Level routes
-  app.post("/api/levels", isAdmin, async (req, res) => {
-    try {
-      const data = insertLevelSchema.parse(req.body);
-      const level = await storage.createLevel(data);
-      res.status(201).json(level);
-    } catch (error) {
-      res.status(400).json({ message: (error as Error).message });
-    }
-  });
+  // === وحدة المستويات (Levels) ===
+  if (!migratedModules.includes('levels')) {
+    console.log('⚠️ تسجيل مسارات المستويات القديمة (levels)');
+    
+    app.post("/api/levels", isAdmin, async (req, res) => {
+      try {
+        const data = insertLevelSchema.parse(req.body);
+        const level = await storage.createLevel(data);
+        res.status(201).json(level);
+      } catch (error) {
+        res.status(400).json({ message: (error as Error).message });
+      }
+    });
 
-  app.get("/api/levels", async (req, res) => {
-    const levels = await storage.listLevels();
-    res.json(levels);
-  });
+    app.get("/api/levels", async (req, res) => {
+      const levels = await storage.listLevels();
+      res.json(levels);
+    });
+    
+    // مسار الحصول على مستوى بواسطة الـ slug
+    app.get("/api/levels/slug/:slug", async (req, res) => {
+      try {
+        const slug = req.params.slug;
+        const level = await storage.getLevelBySlug(slug);
+        if (!level) {
+          return res.status(404).json({ message: "Level not found" });
+        }
+        res.json(level);
+      } catch (error) {
+        console.error("Error fetching level by slug:", error);
+        res.status(500).json({ message: "Failed to fetch level", error: (error as Error).message });
+      }
+    });
+    
+    app.get("/api/levels/:id", async (req, res) => {
+      try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+          return res.status(400).json({ message: "Invalid level ID" });
+        }
+        const level = await storage.getLevel(id);
+        if (!level) {
+          return res.status(404).json({ message: "Level not found" });
+        }
+        res.json(level);
+      } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+      }
+    });
+    
+    app.put("/api/levels/:id", isAdmin, async (req, res) => {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid level ID" });
+      }
+      try {
+        const data = insertLevelSchema.partial().parse(req.body);
+        const level = await storage.updateLevel(id, data);
+        if (!level) {
+          return res.status(404).json({ message: "Level not found" });
+        }
+        res.json(level);
+      } catch (error) {
+        res.status(400).json({ message: (error as Error).message });
+      }
+    });
+    
+    app.delete("/api/levels/:id", isAdmin, async (req, res) => {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid level ID" });
+      }
+      try {
+        const success = await storage.deleteLevel(id);
+        if (!success) {
+          return res.status(404).json({ message: "Level not found" });
+        }
+        res.json({ message: "Level deleted successfully" });
+      } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+      }
+    });
+  }
 
   // Country routes
   app.post("/api/countries", isAdmin, async (req, res) => {

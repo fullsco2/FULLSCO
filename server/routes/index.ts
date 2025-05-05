@@ -8,6 +8,7 @@ import scholarshipsRoutes from './scholarships-routes';
 import postsRoutes from './posts-routes';
 import successStoriesRoutes from './success-stories-routes';
 import categoriesRoutes from './categories-routes';
+import levelsRoutes from './levels-routes';
 
 /**
  * تسجيل جميع مسارات API
@@ -39,4 +40,7 @@ export function registerApiRoutes(app: Express, apiPrefix: string): void {
   
   // تسجيل مسارات الفئات
   app.use(`${apiPrefix}/categories`, categoriesRoutes);
+  
+  // تسجيل مسارات المستويات الدراسية
+  app.use(`${apiPrefix}/levels`, levelsRoutes);
 }
