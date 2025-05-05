@@ -20,13 +20,16 @@ export function SuccessStoriesProvider({ children }: { children: ReactNode }) {
   
   // جلب جميع قصص النجاح
   const {
-    data: successStories = [],
+    data: successStoriesResponse,
     error,
     isLoading,
-  } = useQuery<SuccessStory[], Error>({
+  } = useQuery<{ success: boolean, data: SuccessStory[] }, Error>({
     queryKey: ["/api/success-stories"],
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
+  
+  // استخراج قصص النجاح من بيانات الاستجابة
+  const successStories = successStoriesResponse?.data || [];
 
   // حذف قصة نجاح
   const deleteMutation = useMutation({

@@ -17,9 +17,12 @@ import AdminLayout from '@/components/admin/admin-layout';
 export default function AdminUsers() {
   const [searchQuery, setSearchQuery] = useState('');
   
-  const { data: users = [], isLoading } = useQuery<User[]>({
+  const { data: usersResponse, isLoading } = useQuery<{ success: boolean, data: User[] }>({
     queryKey: ['/api/users'],
   });
+  
+  // استخراج المستخدمين من بيانات الاستجابة
+  const users = usersResponse?.data || [];
   
   // تصفية المستخدمين بناءً على البحث
   const filteredUsers = users.filter(user => 

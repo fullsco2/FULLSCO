@@ -72,9 +72,12 @@ const AdminSubscribers = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
   // Fetch subscribers
-  const { data: subscribers, isLoading } = useQuery<Subscriber[]>({
+  const { data: subscribersResponse, isLoading } = useQuery<{ success: boolean, data: Subscriber[] }>({
     queryKey: ['/api/subscribers'],
   });
+  
+  // استخراج المشتركين من بيانات الاستجابة
+  const subscribers = subscribersResponse?.data || [];
 
   // Delete subscriber mutation
   const deleteMutation = useMutation({
