@@ -4,10 +4,14 @@ import { AppConfig } from "./config/app-config";
 
 // استيراد مسارات واجهة برمجة التطبيق
 import { registerRoutes } from "./routes";
+import { setupSessionMiddleware } from "./middlewares/session-middleware";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// إعداد جلسات المستخدم والمصادقة
+setupSessionMiddleware(app);
 
 // وسيط تسجيل طلبات واجهة برمجة التطبيق للتصحيح
 app.use((req, res, next) => {
@@ -63,13 +67,8 @@ app.use((req, res, next) => {
 
   // تشغيل الخادم على المنفذ المحدد
   const port = AppConfig.server.port;
-  const host = AppConfig.server.host;
   
-  server.listen({
-    port,
-    host,
-    reusePort: true,
-  }, () => {
+  server.listen(port, '0.0.0.0', () => {
     log(`serving on port ${port}`);
   });
 })();
