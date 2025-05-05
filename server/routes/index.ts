@@ -9,6 +9,7 @@ import postsRoutes from './posts-routes';
 import successStoriesRoutes from './success-stories-routes';
 import categoriesRoutes from './categories-routes';
 import levelsRoutes from './levels-routes';
+import countriesRoutes from './countries-routes';
 
 /**
  * تسجيل جميع مسارات API
@@ -43,4 +44,7 @@ export function registerApiRoutes(app: Express, apiPrefix: string): void {
   
   // تسجيل مسارات المستويات الدراسية
   app.use(`${apiPrefix}/levels`, levelsRoutes);
+  
+  // تسجيل مسارات الدول
+  app.use(`${apiPrefix}/countries`, countriesRoutes);
 }

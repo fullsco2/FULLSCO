@@ -47,7 +47,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     'posts',          // المقالات
     'success-stories', // قصص النجاح
     'categories',     // التصنيفات
-    'levels'          // المستويات الدراسية
+    'levels',         // المستويات الدراسية
+    'countries'       // الدول
   ];
 
   console.log('🚀 بدء تسجيل المسارات...');
@@ -326,21 +327,89 @@ export function registerLegacyRoutes(app: Express, migratedModules: string[] = [
     });
   }
 
-  // Country routes
-  app.post("/api/countries", isAdmin, async (req, res) => {
-    try {
-      const data = insertCountrySchema.parse(req.body);
-      const country = await storage.createCountry(data);
-      res.status(201).json(country);
-    } catch (error) {
-      res.status(400).json({ message: (error as Error).message });
-    }
-  });
+  // === وحدة الدول (Countries) ===
+  if (!migratedModules.includes('countries')) {
+    console.log('⚠️ تسجيل مسارات الدول القديمة (countries)');
+    
+    app.post("/api/countries", isAdmin, async (req, res) => {
+      try {
+        const data = insertCountrySchema.parse(req.body);
+        const country = await storage.createCountry(data);
+        res.status(201).json(country);
+      } catch (error) {
+        res.status(400).json({ message: (error as Error).message });
+      }
+    });
 
-  app.get("/api/countries", async (req, res) => {
-    const countries = await storage.listCountries();
-    res.json(countries);
-  });
+    app.get("/api/countries", async (req, res) => {
+      const countries = await storage.listCountries();
+      res.json(countries);
+    });
+    
+    // مسار الحصول على دولة بواسطة الـ slug
+    app.get("/api/countries/slug/:slug", async (req, res) => {
+      try {
+        const slug = req.params.slug;
+        const country = await storage.getCountryBySlug(slug);
+        if (!country) {
+          return res.status(404).json({ message: "Country not found" });
+        }
+        res.json(country);
+      } catch (error) {
+        console.error("Error fetching country by slug:", error);
+        res.status(500).json({ message: "Failed to fetch country", error: (error as Error).message });
+      }
+    });
+    
+    app.get("/api/countries/:id", async (req, res) => {
+      try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+          return res.status(400).json({ message: "Invalid country ID" });
+        }
+        const country = await storage.getCountry(id);
+        if (!country) {
+          return res.status(404).json({ message: "Country not found" });
+        }
+        res.json(country);
+      } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+      }
+    });
+    
+    app.put("/api/countries/:id", isAdmin, async (req, res) => {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid country ID" });
+      }
+      try {
+        const data = insertCountrySchema.partial().parse(req.body);
+        const country = await storage.updateCountry(id, data);
+        if (!country) {
+          return res.status(404).json({ message: "Country not found" });
+        }
+        res.json(country);
+      } catch (error) {
+        res.status(400).json({ message: (error as Error).message });
+      }
+    });
+    
+    app.delete("/api/countries/:id", isAdmin, async (req, res) => {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid country ID" });
+      }
+      try {
+        const success = await storage.deleteCountry(id);
+        if (!success) {
+          return res.status(404).json({ message: "Country not found" });
+        }
+        res.json({ message: "Country deleted successfully" });
+      } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+      }
+    });
+  }
 
   // === وحدة المصادقة (Auth) ===
   if (!migratedModules.includes('auth')) {
