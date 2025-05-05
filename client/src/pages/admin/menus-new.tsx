@@ -90,7 +90,10 @@ export default function MenusPage() {
   const { data: countries, isLoading: countriesLoading } = useCountries();
   
   // البيانات المفلترة حسب الموقع النشط
-  const locationMenus = menus?.filter(menu => menu.location === activeTab) || [];
+  const locationMenus = menus?.data ? Array.isArray(menus.data) 
+    ? menus.data.filter(menu => menu.location === activeTab) 
+    : [] 
+    : [];
   
   // بيانات القائمة المحددة النشطة
   const { data: activeMenuItems, isLoading: menuItemsLoading, refetch: refetchMenuItems } = useMenuItemsWithDetails(activeMenuId || 0);

@@ -69,7 +69,7 @@ type NavItem = {
 
 // تجميع العناصر في مجموعات منطقية
 const navItems: NavItem[] = [
-  { href: '/admin', label: 'لوحة التحكم', icon: LayoutDashboard },
+  { href: '/admin/dashboard', label: 'لوحة التحكم', icon: LayoutDashboard },
   
   { 
     label: 'إدارة المنح',
