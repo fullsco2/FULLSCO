@@ -24,19 +24,26 @@ const Articles = () => {
   }, [location]);
 
   // جلب المقالات
-  const { data: posts, isLoading } = useQuery<Post[]>({
+  const { data: postsResponse, isLoading } = useQuery<{ success: boolean, data: Post[] }>({
     queryKey: ['/api/posts'],
   });
+  
+  // استخراج مصفوفة المقالات من الاستجابة
+  const posts = postsResponse?.data || [];
 
   // جلب المستخدمين (المؤلفين)
-  const { data: users } = useQuery<User[]>({
+  const { data: usersResponse } = useQuery<{ success: boolean, data: User[] }>({
     queryKey: ['/api/users'],
   });
   
+  const users = usersResponse?.data || [];
+  
   // جلب التصنيفات
-  const { data: tags } = useQuery<TagType[]>({
+  const { data: tagsResponse } = useQuery<{ success: boolean, data: TagType[] }>({
     queryKey: ['/api/tags'],
   });
+  
+  const tags = tagsResponse?.data || [];
   
   // الحصول على تصنيفات المقال
   const [postTagsMap, setPostTagsMap] = useState<Record<number, TagType[]>>({});

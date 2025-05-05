@@ -26,13 +26,21 @@ import { Post, User } from '@shared/schema';
 const ArticleDetail = () => {
   const { slug } = useParams();
   
-  const { data: post, isLoading, error } = useQuery<Post>({
+  // جلب تفاصيل المقال من خلال الـ slug
+  const { data: postResponse, isLoading, error } = useQuery<{ success: boolean, data: Post }>({
     queryKey: [`/api/posts/slug/${slug}`],
   });
+  
+  // استخراج بيانات المقال من الاستجابة
+  const post = postResponse?.data;
 
-  const { data: users } = useQuery<User[]>({
+  // جلب المستخدمين (المؤلفين)
+  const { data: usersResponse } = useQuery<{ success: boolean, data: User[] }>({
     queryKey: ['/api/users'],
   });
+  
+  // استخراج مصفوفة المستخدمين من الاستجابة
+  const users = usersResponse?.data || [];
 
   // استعلام عن تصنيفات المقال
   const { data: postTags = [] } = useQuery<any[]>({
@@ -40,10 +48,14 @@ const ArticleDetail = () => {
     enabled: !!post?.id, // تأكد من وجود معرف المقال قبل جلب التصنيفات
   });
 
-  const { data: relatedPosts = [] } = useQuery<Post[]>({
+  // جلب المقالات ذات الصلة
+  const { data: relatedPostsResponse } = useQuery<{ success: boolean, data: Post[] }>({
     queryKey: ['/api/posts', { limit: 3 }],
     enabled: !!post?.id, // تأكد من وجود معرف المقال قبل جلب المقالات ذات الصلة
   });
+  
+  // استخراج مصفوفة المقالات ذات الصلة
+  const relatedPosts = relatedPostsResponse?.data || [];
 
   // Increment view count (this happens automatically on the API side)
   useEffect(() => {
