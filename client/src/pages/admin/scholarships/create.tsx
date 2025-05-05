@@ -88,8 +88,9 @@ const scholarshipFormSchema = z.object({
   department: z.string().optional(),
   website: z.string().url('يرجى إدخال رابط صحيح').optional().or(z.literal('')),
   
-  startDate: z.date().optional().nullable(),
-  endDate: z.date().optional().nullable(),
+  // تغيير نوع التاريخ للسماح بقبول نص أو كائن تاريخ
+  startDate: z.union([z.date(), z.string()]).optional().nullable(),
+  endDate: z.union([z.date(), z.string()]).optional().nullable(),
   
   isFeatured: z.boolean().default(false),
   isPublished: z.boolean().default(true),
@@ -211,8 +212,9 @@ export default function CreateScholarshipPage() {
         countryId: parseInt(scholarshipData.countryId),
         levelId: parseInt(scholarshipData.levelId),
         categoryId: parseInt(scholarshipData.categoryId),
-        startDate: scholarshipData.startDate ? new Date(scholarshipData.startDate) : null,
-        endDate: scholarshipData.endDate ? new Date(scholarshipData.endDate) : null,
+        // تحويل التواريخ إلى نصوص ISO للتوافق مع الخادم
+        startDate: scholarshipData.startDate ? scholarshipData.startDate.toISOString() : null,
+        endDate: scholarshipData.endDate ? scholarshipData.endDate.toISOString() : null,
         imageUrl: scholarshipData.featuredImage, // تحويل featuredImage إلى imageUrl
       };
       
@@ -264,8 +266,9 @@ export default function CreateScholarshipPage() {
         countryId: parseInt(scholarshipData.countryId),
         levelId: parseInt(scholarshipData.levelId),
         categoryId: parseInt(scholarshipData.categoryId),
-        startDate: scholarshipData.startDate ? new Date(scholarshipData.startDate) : null,
-        endDate: scholarshipData.endDate ? new Date(scholarshipData.endDate) : null,
+        // تحويل التواريخ إلى نصوص ISO للتوافق مع الخادم
+        startDate: scholarshipData.startDate ? scholarshipData.startDate.toISOString() : null,
+        endDate: scholarshipData.endDate ? scholarshipData.endDate.toISOString() : null,
         imageUrl: scholarshipData.featuredImage, // تحويل featuredImage إلى imageUrl
       };
       

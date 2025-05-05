@@ -92,11 +92,11 @@ const baseScholarshipSchema = createInsertSchema(scholarships).omit({
   updatedAt: true
 });
 
-// تعريف مخطط خاص للتواريخ للسماح بإدخال نصوص أو كائنات تاريخ
+// تعريف مخطط خاص للتواريخ للسماح بإدخال نصوص أو كائنات تاريخ أو قيم فارغة
 export const insertScholarshipSchema = baseScholarshipSchema.extend({
-  // السماح بإدخال التواريخ كنصوص أو كائنات تاريخ أو null
-  startDate: z.union([z.date(), z.string(), z.null()]).optional(),
-  endDate: z.union([z.date(), z.string(), z.null()]).optional()
+  // تعديل: يجب استخدام z.any() بدلاً من z.union() لقبول أي نوع من البيانات للتواريخ
+  startDate: z.any(),
+  endDate: z.any()
 });
 
 // Blog Posts Table
