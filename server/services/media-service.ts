@@ -41,15 +41,15 @@ export class MediaService {
     const validatedData = insertMediaFileSchema.parse(mediaFileData);
     
     // إذا تم توفير الملف، حفظه في المجلد
-    if (fileBuffer && validatedData.filePath) {
+    if (fileBuffer && validatedData.url) {
       // التأكد من أن مسار الملف يبدأ من مجلد التحميلات
-      const fullPath = path.join(this.uploadsDir, path.basename(validatedData.filePath));
+      const fullPath = path.join(this.uploadsDir, path.basename(validatedData.url));
       
       // كتابة الملف
       fs.writeFileSync(fullPath, fileBuffer);
       
-      // تحديث مسار الملف ليكون مسارًا نسبيًا من مجلد التحميلات
-      validatedData.filePath = `/uploads/${path.basename(validatedData.filePath)}`;
+      // تحديث المسار ليكون مسارًا نسبيًا من مجلد التحميلات
+      validatedData.url = `/uploads/${path.basename(validatedData.url)}`;
     }
     
     // إنشاء سجل الملف في قاعدة البيانات
@@ -84,14 +84,14 @@ export class MediaService {
     }
 
     // حذف الملف الفعلي من نظام الملفات إذا كان موجودًا
-    if (existingFile.filePath) {
+    if (existingFile.url) {
       try {
-        const fullPath = path.join(process.cwd(), existingFile.filePath);
+        const fullPath = path.join(process.cwd(), existingFile.url);
         if (fs.existsSync(fullPath)) {
           await unlink(fullPath);
         }
       } catch (error) {
-        console.error(`Error deleting file at ${existingFile.filePath}:`, error);
+        console.error(`Error deleting file at ${existingFile.url}:`, error);
         // استمر في العملية حتى لو فشل حذف الملف من نظام الملفات
       }
     }
@@ -111,14 +111,14 @@ export class MediaService {
     
     // حذف الملفات الفعلية من نظام الملفات
     for (const file of mediaFiles) {
-      if (file && file.filePath) {
+      if (file && file.url) {
         try {
-          const fullPath = path.join(process.cwd(), file.filePath);
+          const fullPath = path.join(process.cwd(), file.url);
           if (fs.existsSync(fullPath)) {
             await unlink(fullPath);
           }
         } catch (error) {
-          console.error(`Error deleting file at ${file.filePath}:`, error);
+          console.error(`Error deleting file at ${file.url}:`, error);
           // استمر في العملية حتى لو فشل حذف بعض الملفات
         }
       }

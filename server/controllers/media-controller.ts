@@ -106,17 +106,15 @@ export class MediaController {
         return;
       }
 
-      // إنشاء كائن البيانات للملف مع إصلاح مسار الملف وإضافة رابط url
+      // إنشاء كائن البيانات للملف متوافقًا مع مخطط قاعدة البيانات
       const mediaFileData = {
         filename: req.file.filename,
         originalFilename: req.file.originalname,
-        filePath: `/uploads/${req.file.filename}`,
         url: `/uploads/${req.file.filename}`,
         size: req.file.size,
         mimeType: req.file.mimetype,
         alt: req.body.alt || req.file.originalname,
-        title: req.body.title || req.file.originalname,
-        description: req.body.description || ''
+        title: req.body.title || req.file.originalname
       };
       
       // إنشاء سجل الملف في قاعدة البيانات
