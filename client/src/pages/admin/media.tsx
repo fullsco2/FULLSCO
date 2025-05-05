@@ -847,7 +847,7 @@ export default function MediaManagementPage() {
                       <CheckCircle className="h-4 w-4 ml-2" />
                       <div>
                         <p>تم اختيار الملف:</p>
-                        <p className="font-bold mt-1">{uploadForm.getValues().file.name}</p>
+                        <p className="font-bold mt-1">{uploadForm.getValues().file?.name}</p>
                       </div>
                     </div>
                   )}
