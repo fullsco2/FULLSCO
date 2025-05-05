@@ -51,14 +51,16 @@ const ArticleDetail = () => {
     if (post) {
       document.title = `${post.title} - FULLSCO Blog`;
       
-      // Set meta description
+      // Set meta description - handle safely in case content is empty or undefined
+      const safeDescription = post.excerpt || (post.content ? post.content.substring(0, 160) : `مقالة: ${post.title}`);
+      
       const metaDescription = document.querySelector('meta[name="description"]');
       if (metaDescription) {
-        metaDescription.setAttribute('content', post.excerpt || post.content.substring(0, 160));
+        metaDescription.setAttribute('content', safeDescription);
       } else {
         const meta = document.createElement('meta');
         meta.name = 'description';
-        meta.content = post.excerpt || post.content.substring(0, 160);
+        meta.content = safeDescription;
         document.head.appendChild(meta);
       }
     }
@@ -70,11 +72,19 @@ const ArticleDetail = () => {
     return author?.fullName || 'FULLSCO Team';
   };
 
-  const getReadingTime = (content: string) => {
-    const wordsPerMinute = 200;
-    const wordCount = content.trim().split(/\s+/).length;
-    const readingTime = Math.ceil(wordCount / wordsPerMinute);
-    return readingTime;
+  const getReadingTime = (content: string | null | undefined) => {
+    // التعامل مع محتوى فارغ أو غير محدد
+    if (!content) return 1; // وقت قراءة افتراضي
+    
+    try {
+      const wordsPerMinute = 200;
+      const wordCount = content.trim().split(/\s+/).length;
+      const readingTime = Math.max(1, Math.ceil(wordCount / wordsPerMinute));
+      return readingTime;
+    } catch (error) {
+      console.error('خطأ في حساب وقت القراءة:', error);
+      return 1; // وقت قراءة افتراضي
+    }
   };
 
   if (isLoading) {
