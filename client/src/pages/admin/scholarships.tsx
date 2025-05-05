@@ -130,13 +130,16 @@ const AdminScholarships = () => {
 
   // Fetch scholarships
   const {
-    data: scholarships,
+    data: scholarshipsResponse,
     isLoading,
     error,
-  } = useQuery<Scholarship[]>({
+  } = useQuery<{ success: boolean; data: Scholarship[] }>({
     queryKey: ["/api/scholarships"],
     enabled: isAuthenticated,
   });
+
+  // استخراج المنح الدراسية من البيانات المستجابة
+  const scholarships = scholarshipsResponse?.data || [];
 
   // Fetch related data
   const { data: countries } = useQuery<Country[]>({
