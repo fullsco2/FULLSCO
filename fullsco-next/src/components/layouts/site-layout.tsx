@@ -1,0 +1,73 @@
+'use client';
+
+import { ReactNode, useState, useEffect } from 'react';
+import Header from '@/components/header';
+import Footer from '@/components/footer';
+
+interface SiteSettings {
+  siteName?: string;
+  siteTagline?: string;
+  siteDescription?: string;
+  logo?: string;
+  footerText?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  facebook?: string;
+  twitter?: string;
+  instagram?: string;
+  linkedin?: string;
+  youtube?: string;
+}
+
+interface SiteLayoutProps {
+  children: ReactNode;
+}
+
+export default function SiteLayout({ children }: SiteLayoutProps) {
+  const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // جلب إعدادات الموقع
+    const fetchSettings = async () => {
+      try {
+        const response = await fetch('/api/site-settings');
+        if (!response.ok) throw new Error('فشل في جلب إعدادات الموقع');
+        const data = await response.json();
+        setSettings(data.data || {});
+      } catch (error) {
+        console.error('Error fetching site settings:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // التحقق من حالة تسجيل الدخول
+    const checkAuthStatus = async () => {
+      try {
+        const response = await fetch('/api/user');
+        // إذا كانت الاستجابة ناجحة، فالمستخدم مسجل الدخول
+        if (response.ok) {
+          setIsLoggedIn(true);
+        }
+      } catch (error) {
+        console.error('Error checking auth status:', error);
+      }
+    };
+
+    fetchSettings();
+    checkAuthStatus();
+  }, []);
+
+  return (
+    <div className="flex min-h-screen flex-col">
+      <Header settings={settings || {}} isLoggedIn={isLoggedIn} />
+      <main className="flex-grow">
+        {children}
+      </main>
+      <Footer settings={settings || {}} />
+    </div>
+  );
+}
