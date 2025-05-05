@@ -15,8 +15,8 @@ export function formatDate(date: Date | string): string {
 }
 
 export function truncateText(text: string, maxLength: number = 100): string {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
+  if (text?.length <= maxLength) return text;
+  return (text || '').substring(0, maxLength) + '...';
 }
 
 // تحويل اللون من HEX إلى HSL (للمتغيرات في CSS)
