@@ -252,11 +252,14 @@ export default function MenusPage() {
     if (sourceIndex === destinationIndex) return;
     
     // معالجة إعادة ترتيب عناصر القائمة
-    const menuItem = activeMenuItems?.find(item => item.id === sourceId);
+    const menuItemsArray = activeMenuItems?.data && Array.isArray(activeMenuItems.data) 
+      ? activeMenuItems.data 
+      : [];
+    const menuItem = menuItemsArray.find(item => item.id === sourceId);
     
     if (menuItem) {
       const reorderedItems = reorderMenuItems(
-        activeMenuItems || [],
+        menuItemsArray,
         sourceIndex,
         destinationIndex,
         menuItem.parentId
@@ -384,9 +387,12 @@ export default function MenusPage() {
   
   const handleAddMenuItem = (data: MenuItemFormValues) => {
     // الحصول على العدد الإجمالي للعناصر في نفس المستوى كترتيب افتراضي
-    const sameLevel = activeMenuItems?.filter(
+    const menuItemsArray = activeMenuItems?.data && Array.isArray(activeMenuItems.data) 
+      ? activeMenuItems.data 
+      : [];
+    const sameLevel = menuItemsArray.filter(
       item => item.parentId === data.parentId
-    ) || [];
+    );
     const order = sameLevel.length;
     
     apiRequest('POST', '/api/menu-items', { ...data, order })
@@ -492,15 +498,19 @@ export default function MenusPage() {
   };
   
   // تنظيم عناصر القائمة في هيكل متداخل (الأصل/الفروع)
-  const organizeMenuItems = (items: any[] = []) => {
-    if (!items?.length) return [];
+  const organizeMenuItems = (items: any) => {
+    const menuItemsArray = items?.data && Array.isArray(items.data) 
+      ? items.data 
+      : [];
     
-    const rootItems = items
+    if (!menuItemsArray.length) return [];
+    
+    const rootItems = menuItemsArray
       .filter(item => item.parentId === null)
       .sort((a, b) => a.order - b.order);
     
     const populateChildren = (item: any) => {
-      const children = items
+      const children = menuItemsArray
         .filter(child => child.parentId === item.id)
         .sort((a, b) => a.order - b.order)
         .map(populateChildren);
@@ -573,7 +583,12 @@ export default function MenusPage() {
   const getParentOptions = () => {
     if (!activeMenuItems) return [];
     
-    return activeMenuItems
+    // التحقق من أن activeMenuItems.data موجود ومصفوفة
+    const menuItemsArray = activeMenuItems?.data && Array.isArray(activeMenuItems.data) 
+      ? activeMenuItems.data 
+      : [];
+    
+    return menuItemsArray
       .filter(item => item.parentId === null && (selectedMenuItem ? item.id !== selectedMenuItem.id : true))
       .map(item => ({
         id: item.id,
@@ -774,7 +789,7 @@ export default function MenusPage() {
                     <div className="p-8 text-center animate-pulse">
                       جاري تحميل عناصر القائمة...
                     </div>
-                  ) : (!activeMenuItems || activeMenuItems.length === 0) ? (
+                  ) : (!activeMenuItems?.data || !Array.isArray(activeMenuItems.data) || activeMenuItems.data.length === 0) ? (
                     <div className="p-8 text-center border border-dashed rounded-lg">
                       <TriangleAlert className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                       <h3 className="font-medium text-lg mb-1">لا توجد عناصر</h3>
