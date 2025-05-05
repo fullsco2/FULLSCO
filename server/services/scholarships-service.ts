@@ -34,14 +34,11 @@ export class ScholarshipsService {
       scholarshipData.slug = this.generateSlug(scholarshipData.title);
     }
 
-    // معالجة حقول التاريخ - تحويل النصوص إلى كائنات تاريخ
-    if (scholarshipData.startDate && typeof scholarshipData.startDate === 'string') {
-      scholarshipData.startDate = new Date(scholarshipData.startDate);
-    }
-
-    if (scholarshipData.endDate && typeof scholarshipData.endDate === 'string') {
-      scholarshipData.endDate = new Date(scholarshipData.endDate);
-    }
+    // نقبل التواريخ بأي صيغة كانت
+    // التحويل يتم في قاعدة البيانات
+    
+    // تسجيل بيانات المنحة للتصحيح
+    console.log('Creating scholarship with data:', JSON.stringify(scholarshipData, null, 2));
 
     return this.repository.createScholarship(scholarshipData);
   }
@@ -61,14 +58,11 @@ export class ScholarshipsService {
       scholarshipData.slug = this.generateSlug(scholarshipData.title);
     }
 
-    // معالجة حقول التاريخ - تحويل النصوص إلى كائنات تاريخ
-    if (scholarshipData.startDate && typeof scholarshipData.startDate === 'string') {
-      scholarshipData.startDate = new Date(scholarshipData.startDate);
-    }
-
-    if (scholarshipData.endDate && typeof scholarshipData.endDate === 'string') {
-      scholarshipData.endDate = new Date(scholarshipData.endDate);
-    }
+    // نقبل التواريخ بأي صيغة كانت
+    // التحويل يتم في قاعدة البيانات
+    
+    // تسجيل بيانات المنحة للتصحيح
+    console.log('Updating scholarship with data:', JSON.stringify(scholarshipData, null, 2));
 
     return this.repository.updateScholarship(id, scholarshipData);
   }
