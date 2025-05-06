@@ -1,217 +1,298 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeft, Calendar, Building2, Award, User } from 'lucide-react';
+import Image from 'next/image';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { TypographyH1, TypographyP } from '@/components/ui/typography';
+import { Share2, ArrowRight, Loader2, AlertCircle, CalendarIcon, GraduationCap, MapPin, Clock } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
-interface SuccessStoryDetailProps {
+type SuccessStoryDetailProps = {
   slug: string;
-}
+};
 
-export default function SuccessStoryDetail({ slug }: SuccessStoryDetailProps) {
+type SuccessStory = {
+  id: number;
+  name: string;
+  title: string;
+  content: string;
+  excerpt?: string;
+  slug: string;
+  university?: string;
+  country?: string;
+  profileImage?: string;
+  thumbnailUrl?: string;
+  year?: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function SuccessStoryDetail({ slug }: SuccessStoryDetailProps) {
   const router = useRouter();
-  const [story, setStory] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const pathname = usePathname();
+  
+  const [story, setStory] = useState<SuccessStory | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [relatedStories, setRelatedStories] = useState<SuccessStory[]>([]);
 
+  // جلب بيانات قصة النجاح
   useEffect(() => {
-    async function loadSuccessStory() {
+    const fetchSuccessStory = async () => {
       try {
-        // استدعاء قصة النجاح من الخادم
+        setIsLoading(true);
+        setError(null);
+
         const response = await fetch(`/api/success-stories/${slug}`);
-        
         if (!response.ok) {
           if (response.status === 404) {
-            throw new Error('لم يتم العثور على قصة النجاح');
+            throw new Error('\u0642\u0635\u0629 \u0627\u0644\u0646\u062c\u0627\u062d \u063a\u064a\u0631 \u0645\u0648\u062c\u0648\u062f\u0629');
           }
-          throw new Error(`خطأ في الطلب: ${response.status}`);
+          throw new Error(`\u062e\u0637\u0623 \u0641\u064a \u062c\u0644\u0628 \u0642\u0635\u0629 \u0627\u0644\u0646\u062c\u0627\u062d: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
-        // التعامل مع هيكل البيانات من API الحالي
-        if (data.success && data.data) {
-          setStory(data.data);
-        } else if (data && !data.success) {
-          throw new Error(data.message || 'حدث خطأ أثناء تحميل قصة النجاح');
-        } else {
-          setStory(data);
-        }
-      } catch (err) {
-        console.error('Error loading success story:', err);
-        setError(err instanceof Error ? err.message : 'حدث خطأ أثناء تحميل قصة النجاح');
+        setStory(data);
+
+        // بعد جلب قصة النجاح، نجلب قصص نجاح ذات صلة
+        fetchRelatedStories(data.id);
+      } catch (error) {
+        console.error('Error fetching success story:', error);
+        setError(error instanceof Error ? error.message : '\u062d\u062f\u062b \u062e\u0637\u0623 \u063a\u064a\u0631 \u0645\u0639\u0631\u0648\u0641');
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
-    }
+    };
 
     if (slug) {
-      loadSuccessStory();
+      fetchSuccessStory();
     }
   }, [slug]);
 
-  if (loading) {
+  // جلب قصص نجاح ذات صلة
+  const fetchRelatedStories = async (storyId: number) => {
+    try {
+      const response = await fetch(`/api/success-stories?limit=3`);
+      if (!response.ok) throw new Error('Failed to fetch related stories');
+      
+      const data = await response.json();
+      // فلترة قصة النجاح الحالية من النتائج
+      const filteredStories = data.data.filter((s: SuccessStory) => s.id !== storyId);
+      setRelatedStories(filteredStories.slice(0, 3));
+    } catch (error) {
+      console.error('Error fetching related stories:', error);
+    }
+  };
+
+  // يتعامل مع مشاركة قصة النجاح
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: story ? `${story.name}: ${story.title}` : '\u0642\u0635\u0629 \u0646\u062c\u0627\u062d',
+          text: story?.excerpt || '\u0627\u0643\u062a\u0634\u0641 \u0647\u0630\u0647 \u0627\u0644\u0642\u0635\u0629 \u0627\u0644\u0645\u0644\u0647\u0645\u0629',
+          url: window.location.href,
+        });
+      } else {
+        // نسخ الرابط إلى الحافظة إذا كانت واجهة المشاركة غير متوفرة
+        await navigator.clipboard.writeText(window.location.href);
+        alert('\u062a\u0645 \u0646\u0633\u062e \u0627\u0644\u0631\u0627\u0628\u0637 \u0625\u0644\u0649 \u0627\u0644\u062d\u0627\u0641\u0638\u0629');
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
+  // يعود للصفحة السابقة
+  const handleBack = () => {
+    router.back();
+  };
+
+  if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-12 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl">
-          <div className="mb-6">
-            <Skeleton className="h-8 w-3/4 rounded-md" />
-            <Skeleton className="mt-2 h-6 w-1/2 rounded-md" />
-          </div>
-          
-          <Skeleton className="mb-8 h-64 w-full rounded-lg" />
-          
-          <div className="space-y-4">
-            <Skeleton className="h-4 w-full rounded-md" />
-            <Skeleton className="h-4 w-full rounded-md" />
-            <Skeleton className="h-4 w-full rounded-md" />
-            <Skeleton className="h-4 w-3/4 rounded-md" />
-          </div>
-        </div>
+      <div className="container py-12 flex flex-col items-center justify-center min-h-[50vh]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg">\u062c\u0627\u0631\u064a \u062a\u062d\u0645\u064a\u0644 \u0642\u0635\u0629 \u0627\u0644\u0646\u062c\u0627\u062d...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-lg rounded-lg border border-red-200 bg-red-50 p-6 text-center dark:border-red-900 dark:bg-red-900/20">
-          <h2 className="mb-4 text-xl font-bold text-red-700 dark:text-red-400">خطأ في تحميل قصة النجاح</h2>
-          <p className="mb-6 text-red-600 dark:text-red-300">{error}</p>
-          <Button onClick={() => router.push('/success-stories')} variant="outline">
-            <ChevronLeft className="ml-2 h-4 w-4" />
-            العودة إلى قصص النجاح
-          </Button>
-        </div>
+      <div className="container py-12 flex flex-col items-center justify-center min-h-[50vh] text-center">
+        <AlertCircle className="h-16 w-16 text-destructive mb-4" />
+        <h2 className="text-2xl font-bold mb-2">\u062d\u062f\u062b \u062e\u0637\u0623</h2>
+        <p className="text-muted-foreground mb-6">{error}</p>
+        <Button onClick={handleBack} variant="outline">
+          <ArrowRight className="ml-2 h-4 w-4" />
+          \u0627\u0644\u0639\u0648\u062f\u0629 \u0644\u0642\u0635\u0635 \u0627\u0644\u0646\u062c\u0627\u062d
+        </Button>
       </div>
     );
   }
 
   if (!story) {
     return (
-      <div className="container mx-auto px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-lg rounded-lg border border-yellow-200 bg-yellow-50 p-6 text-center dark:border-yellow-900 dark:bg-yellow-900/20">
-          <h2 className="mb-4 text-xl font-bold text-yellow-700 dark:text-yellow-400">لم يتم العثور على قصة النجاح</h2>
-          <p className="mb-6 text-yellow-600 dark:text-yellow-300">لا يمكن العثور على قصة النجاح المطلوبة. قد تكون غير موجودة أو تم حذفها.</p>
-          <Button onClick={() => router.push('/success-stories')} variant="outline">
-            <ChevronLeft className="ml-2 h-4 w-4" />
-            العودة إلى قصص النجاح
-          </Button>
-        </div>
+      <div className="container py-12 flex flex-col items-center justify-center min-h-[50vh] text-center">
+        <AlertCircle className="h-16 w-16 text-destructive mb-4" />
+        <h2 className="text-2xl font-bold mb-2">\u0644\u0645 \u064a\u062a\u0645 \u0627\u0644\u0639\u062b\u0648\u0631 \u0639\u0644\u0649 \u0642\u0635\u0629 \u0627\u0644\u0646\u062c\u0627\u062d</h2>
+        <p className="text-muted-foreground mb-6">\u0644\u0645 \u064a\u062a\u0645 \u0627\u0644\u0639\u062b\u0648\u0631 \u0639\u0644\u0649 \u0642\u0635\u0629 \u0627\u0644\u0646\u062c\u0627\u062d \u0627\u0644\u0645\u0637\u0644\u0648\u0628\u0629</p>
+        <Button onClick={handleBack} variant="outline">
+          <ArrowRight className="ml-2 h-4 w-4" />
+          \u0627\u0644\u0639\u0648\u062f\u0629 \u0644\u0642\u0635\u0635 \u0627\u0644\u0646\u062c\u0627\u062d
+        </Button>
       </div>
     );
   }
 
+  const {
+    name,
+    title,
+    content,
+    excerpt,
+    university,
+    country,
+    profileImage,
+    thumbnailUrl,
+    year,
+    createdAt
+  } = story;
+
+  const imageUrl = profileImage || thumbnailUrl || '/images/placeholder-profile.jpg';
+  const formattedDate = formatDate(createdAt);
+
   return (
-    <div className="container mx-auto px-4 py-12 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-3xl">
-        {/* عنوان القصة */}
-        <div className="mb-8">
-          <div className="flex items-center mb-2">
-            <Link 
-              href="/success-stories" 
-              className="inline-flex items-center text-primary hover:text-primary/80 text-sm mb-2"
-            >
-              <ChevronLeft className="h-4 w-4 ml-1" />
-              العودة إلى قصص النجاح
-            </Link>
-          </div>
+    <div className="bg-background min-h-screen py-8 md:py-12">
+      <div className="container px-4 md:px-6">
+        {/* شريط الملاحة الثانوي */}
+        <div className="flex items-center justify-between mb-8">
+          <button
+            onClick={handleBack}
+            className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowRight className="ml-1 h-4 w-4" />
+            \u0627\u0644\u0639\u0648\u062f\u0629
+          </button>
           
-          <h1 className="mb-4 text-3xl font-bold md:text-4xl">{story.name || story.title}</h1>
-          
-          <div className="flex flex-wrap gap-4">
-            {story.university && (
-              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                <Building2 className="ml-1 h-4 w-4 text-primary" />
-                {story.university}
-              </div>
-            )}
-            
-            {story.scholarship && (
-              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                <Award className="ml-1 h-4 w-4 text-primary" />
-                {story.scholarship}
-              </div>
-            )}
-            
-            {story.createdAt && (
-              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                <Calendar className="ml-1 h-4 w-4 text-primary" />
-                {formatDate(story.createdAt)}
-              </div>
-            )}
-          </div>
+          <button
+            onClick={handleShare}
+            className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Share2 className="ml-1 h-4 w-4" />
+            \u0645\u0634\u0627\u0631\u0643\u0629
+          </button>
         </div>
-        
-        {/* صورة القصة */}
-        {story.image && (
-          <div className="mb-8 overflow-hidden rounded-lg">
-            <img 
-              src={story.image} 
-              alt={story.name || story.title} 
-              className="h-auto w-full object-cover"
-            />
-          </div>
-        )}
-        
-        {/* ملخص القصة */}
-        {story.summary && (
-          <div className="mb-8 rounded-lg bg-gray-50 p-6 dark:bg-gray-800/50">
-            <blockquote className="text-lg italic text-gray-700 dark:text-gray-300">
-              {story.summary}
-            </blockquote>
-          </div>
-        )}
-        
-        {/* محتوى القصة */}
-        <div className="prose prose-lg max-w-none dark:prose-invert">
-          {story.content ? (
-            <div dangerouslySetInnerHTML={{ __html: story.content }} />
-          ) : (
-            <p className="text-gray-600 dark:text-gray-400">
-              {story.quote || story.summary || 'لا يوجد محتوى مفصل لهذه القصة.'}
-            </p>
-          )}
-        </div>
-        
-        {/* معلومات الطالب */}
-        {story.studentInfo && (
-          <div className="mt-8 rounded-lg bg-gray-50 p-6 dark:bg-gray-800/50">
-            <h2 className="mb-4 text-xl font-bold">عن الطالب</h2>
-            <div className="flex items-start gap-4">
-              {story.studentImage ? (
-                <img 
-                  src={story.studentImage} 
-                  alt={story.name} 
-                  className="h-16 w-16 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <User className="h-8 w-8" />
+
+        {/* ا\u0644\u0645\u062d\u062a\u0648\u0649 \u0627\u0644\u0631\u0626\u064a\u0633\u064a */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* \u0642\u0635\u0629 \u0627\u0644\u0646\u062c\u0627\u062d */}
+          <div className="lg:col-span-3 space-y-8">
+            {/* \u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0627\u0644\u0634\u062e\u0635 */}
+            <div className="bg-card p-6 rounded-lg border">
+              <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
+                <div className="relative w-32 h-32 rounded-full overflow-hidden border flex-shrink-0">
+                  <Image
+                    src={imageUrl}
+                    alt={name}
+                    fill
+                    priority
+                    className="object-cover"
+                  />
                 </div>
-              )}
-              <div>
-                <h3 className="text-lg font-semibold">{story.name}</h3>
-                <p className="text-gray-600 dark:text-gray-400">{story.studentInfo}</p>
+                
+                <div className="text-center md:text-right">
+                  <h1 className="text-2xl md:text-3xl font-bold mb-2">{name}</h1>
+                  <h2 className="text-xl font-semibold text-primary mb-4">{title}</h2>
+                  
+                  <div className="flex flex-wrap justify-center md:justify-start gap-4 text-sm text-muted-foreground mb-3">
+                    {university && (
+                      <div className="flex items-center">
+                        <GraduationCap className="h-4 w-4 ml-1" />
+                        <span>{university}</span>
+                      </div>
+                    )}
+                    
+                    {country && (
+                      <div className="flex items-center">
+                        <MapPin className="h-4 w-4 ml-1" />
+                        <span>{country}</span>
+                      </div>
+                    )}
+                    
+                    {year && (
+                      <div className="flex items-center">
+                        <CalendarIcon className="h-4 w-4 ml-1" />
+                        <span>{year}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
+
+            {/* \u0627\u0644\u0645\u0642\u062f\u0645\u0629 */}
+            {excerpt && (
+              <div>
+                <TypographyP className="text-lg leading-relaxed text-muted-foreground">
+                  {excerpt}
+                </TypographyP>
+              </div>
+            )}
+            
+            {/* \u0645\u062d\u062a\u0648\u0649 \u0642\u0635\u0629 \u0627\u0644\u0646\u062c\u0627\u062d */}
+            <div className="prose prose-lg dark:prose-invert prose-stone max-w-none">
+              <div dangerouslySetInnerHTML={{ __html: content }} />
+            </div>
           </div>
-        )}
-        
-        {/* زر العودة */}
-        <div className="mt-12 flex justify-center">
-          <Button 
-            onClick={() => router.push('/success-stories')} 
-            variant="outline"
-            className="gap-2"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            العودة إلى قصص النجاح
-          </Button>
+          
+          {/* \u0627\u0644\u0634\u0631\u064a\u0637 \u0627\u0644\u062c\u0627\u0646\u0628\u064a */}
+          <div className="space-y-8">
+            {/* \u0642\u0635\u0635 \u0646\u062c\u0627\u062d \u0630\u0627\u062a \u0635\u0644\u0629 */}
+            {relatedStories && relatedStories.length > 0 && (
+              <div className="bg-card rounded-lg border p-6">
+                <h3 className="text-xl font-semibold mb-4">\u0642\u0635\u0635 \u0646\u062c\u0627\u062d \u0623\u062e\u0631\u0649</h3>
+                
+                <div className="space-y-4">
+                  {relatedStories.map((relatedStory) => (
+                    <div key={relatedStory.id} className="flex gap-3 pb-4 border-b last:border-0 last:pb-0">
+                      <div className="flex-shrink-0 w-16 h-16 relative rounded-full overflow-hidden">
+                        <Link href={`/success-stories/${relatedStory.slug}`}>
+                          <Image
+                            src={relatedStory.profileImage || relatedStory.thumbnailUrl || '/images/placeholder-profile.jpg'}
+                            alt={relatedStory.name}
+                            fill
+                            className="object-cover"
+                          />
+                        </Link>
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm line-clamp-1 mb-1">
+                          <Link href={`/success-stories/${relatedStory.slug}`} className="hover:text-primary">
+                            {relatedStory.name}
+                          </Link>
+                        </h4>
+                        <p className="text-xs line-clamp-2 text-muted-foreground">
+                          {relatedStory.title}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="mt-4 pt-4 border-t">
+                  <Link href="/success-stories">
+                    <Button variant="outline" className="w-full text-sm" size="sm">
+                      \u0639\u0631\u0636 \u0643\u0644 \u0642\u0635\u0635 \u0627\u0644\u0646\u062c\u0627\u062d
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -1,342 +1,292 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Grid, List, RefreshCw, MoveRight, MoveLeft, Clock } from 'lucide-react';
-import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import ArticleCard from './article-card';
-import ArticleListItem from './article-list-item';
-import { formatDate } from '@/lib/utils';
+import Link from 'next/link';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Pagination } from '@/components/ui/pagination';
+import { ArticleCard } from './article-card';
+import { Loader2, AlertCircle, Search, Filter, X } from 'lucide-react';
 
-export default function ArticlesList() {
-  const router = useRouter();
+type Article = {
+  id: number;
+  title: string;
+  content?: string;
+  excerpt?: string;
+  slug: string;
+  thumbnailUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt?: string;
+  categoryName?: string;
+  authorName?: string;
+};
+
+type Category = {
+  id: number;
+  name: string;
+  slug: string;
+};
+
+type FilterParams = {
+  category?: string;
+  query?: string;
+  page?: number;
+};
+
+export function ArticlesList() {
   const searchParams = useSearchParams();
-  
-  const [articles, setArticles] = useState<any[]>([]);
-  const [tags, setTags] = useState<any[]>([]);
-  const [totalItems, setTotalItems] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState(searchParams?.get('search') || '');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  
-  // الصفحة الحالية
-  const currentPage = searchParams?.get('page') ? parseInt(searchParams.get('page') as string) : 1;
-  const tagFilter = searchParams?.get('tag') || '';
-  const itemsPerPage = 9;
+  const router = useRouter();
 
-  // جلب المقالات
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalPages, setTotalPages] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilters, setActiveFilters] = useState<FilterParams>({});
+
+  // Extract current filters from URL
+  useEffect(() => {
+    const params: FilterParams = {};
+
+    if (searchParams.has('category')) {
+      params.category = searchParams.get('category') || undefined;
+      setActiveCategory(params.category || 'all');
+    } else {
+      setActiveCategory('all');
+    }
+    
+    if (searchParams.has('query')) {
+      params.query = searchParams.get('query') || undefined;
+      setSearchQuery(params.query || '');
+    } else {
+      setSearchQuery('');
+    }
+    
+    if (searchParams.has('page')) {
+      const pageParam = parseInt(searchParams.get('page') || '1');
+      params.page = isNaN(pageParam) ? 1 : pageParam;
+      setCurrentPage(params.page);
+    } else {
+      setCurrentPage(1);
+    }
+
+    setActiveFilters(params);
+  }, [searchParams]);
+
+  // Fetch categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/categories');
+        if (!response.ok) throw new Error('Failed to fetch categories');
+        const data = await response.json();
+        setCategories(data);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  // Fetch articles based on filters
   useEffect(() => {
     const fetchArticles = async () => {
       try {
-        setLoading(true);
+        setIsLoading(true);
         setError(null);
-        
-        // بناء الاستعلام
+
+        // Build query params
         const queryParams = new URLSearchParams();
-        queryParams.set('page', currentPage.toString());
-        queryParams.set('limit', itemsPerPage.toString());
-        
-        if (searchQuery) queryParams.set('search', searchQuery);
-        if (tagFilter) queryParams.set('tag', tagFilter);
-        
-        // جلب البيانات من API
+        if (activeFilters.category) queryParams.append('category', activeFilters.category);
+        if (activeFilters.query) queryParams.append('search', activeFilters.query);
+        if (activeFilters.page) queryParams.append('page', activeFilters.page.toString());
+        queryParams.append('limit', '9');
+
         const response = await fetch(`/api/posts?${queryParams.toString()}`);
         if (!response.ok) {
-          throw new Error('Failed to fetch articles');
+          throw new Error(`Error fetching articles: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
-        // التعامل مع هيكل البيانات من API
-        if (data.success && data.data) {
-          setArticles(data.data);
-          setTotalItems(data.totalItems || data.data.length);
-        } else if (Array.isArray(data)) {
-          setArticles(data);
-          setTotalItems(data.length);
-        } else {
-          setArticles([]);
-          setTotalItems(0);
-        }
-      } catch (err) {
-        console.error('Error fetching articles:', err);
-        setError(err instanceof Error ? err.message : 'حدث خطأ أثناء جلب المقالات');
+        setArticles(data?.data || []);
+        setTotalPages(data?.meta?.totalPages || 1);
+      } catch (error) {
+        console.error('Error fetching articles:', error);
+        setError('\u0641\u0634\u0644 \u0641\u064a \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0645\u0642\u0627\u0644\u0627\u062a. \u064a\u0631\u062c\u0649 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.');
+        setArticles([]);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
-    
-    const fetchTags = async () => {
-      try {
-        const response = await fetch('/api/tags');
-        if (!response.ok) {
-          throw new Error('Failed to fetch tags');
-        }
-        
-        const data = await response.json();
-        // التعامل مع هيكل البيانات من API
-        if (data.success && data.data) {
-          setTags(data.data);
-        } else if (Array.isArray(data)) {
-          setTags(data);
-        } else {
-          setTags([]);
-        }
-      } catch (err) {
-        console.error('Error fetching tags:', err);
-        // لا نحتاج لعرض رسالة خطأ عند فشل جلب التصنيفات
-      }
-    };
-    
+
     fetchArticles();
-    fetchTags();
-  }, [currentPage, searchQuery, tagFilter]);
+  }, [activeFilters]);
 
-  // حساب عدد الصفحات
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-
-  // تغيير الصفحة
-  const goToPage = (page: number) => {
-    if (page < 1 || page > totalPages) return;
-    
-    const params = new URLSearchParams(searchParams?.toString() || '');
-    
-    if (page > 1) {
-      params.set('page', page.toString());
-    } else {
-      params.delete('page');
-    }
-    
-    router.push(`/articles${params.toString() ? `?${params.toString()}` : ''}`);
-  };
-
-  // معالجة البحث
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const params = new URLSearchParams(searchParams?.toString() || '');
-    
-    if (searchQuery) {
-      params.set('search', searchQuery);
-    } else {
-      params.delete('search');
-    }
-    
-    // العودة للصفحة الأولى عند تغيير البحث
-    params.delete('page');
-    
-    router.push(`/articles${params.toString() ? `?${params.toString()}` : ''}`);
+    applyFilters({ ...activeFilters, query: searchQuery, page: 1 });
   };
 
-  // تفلتر بواسطة التصنيف
-  const filterByTag = (tag: string) => {
-    const params = new URLSearchParams(searchParams?.toString() || '');
-    
-    if (tag) {
-      params.set('tag', tag);
-    } else {
-      params.delete('tag');
-    }
-    
-    // العودة للصفحة الأولى عند تغيير التصنيف
-    params.delete('page');
-    
-    router.push(`/articles${params.toString() ? `?${params.toString()}` : ''}`);
+  const handleCategoryChange = (category: string) => {
+    setActiveCategory(category);
+    applyFilters({
+      ...activeFilters,
+      category: category === 'all' ? undefined : category,
+      page: 1
+    });
   };
+
+  const handlePageChange = (page: number) => {
+    applyFilters({ ...activeFilters, page });
+  };
+
+  const applyFilters = (filters: FilterParams) => {
+    const params = new URLSearchParams(searchParams.toString());
+    
+    // Apply or remove filters based on their values
+    if (filters.query) params.set('query', filters.query);
+    else params.delete('query');
+    
+    if (filters.category) params.set('category', filters.category);
+    else params.delete('category');
+    
+    if (filters.page && filters.page > 1) params.set('page', filters.page.toString());
+    else params.delete('page');
+    
+    router.push(`/articles?${params.toString()}`);
+  };
+
+  const clearAllFilters = () => {
+    router.push('/articles');
+  };
+
+  const hasActiveFilters = activeFilters.category || activeFilters.query;
 
   return (
-    <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
-      {/* عنوان الصفحة */}
-      <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold text-primary md:text-4xl">المقالات والأخبار</h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-300">استكشف أحدث المقالات والنصائح حول المنح الدراسية والدراسة في الخارج</p>
-      </div>
-      
-      {/* شريط البحث والتحكم */}
-      <div className="mb-6 flex flex-col gap-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-800 sm:flex-row sm:items-center sm:justify-between">
-        <form onSubmit={handleSearch} className="flex max-w-md flex-1 gap-2">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ابحث في المقالات..."
-              className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 pr-10 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-700 dark:bg-gray-900"
-            />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
-          </div>
-          <Button type="submit" className="bg-primary hover:bg-primary/90">
-            بحث
-          </Button>
-        </form>
-        
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600 dark:text-gray-300">عرض:</span>
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'outline'}
-              size="icon"
-              onClick={() => setViewMode('grid')}
-              className={viewMode === 'grid' ? 'bg-primary hover:bg-primary/90' : ''}
-            >
-              <Grid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              size="icon"
-              onClick={() => setViewMode('list')}
-              className={viewMode === 'list' ? 'bg-primary hover:bg-primary/90' : ''}
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          </div>
+    <div className="bg-background min-h-screen py-8 md:py-12">
+      <div className="container px-4 md:px-6">
+        {/* Page Header */}
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">المقالات</h1>
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">اقرأ أحدث المقالات عن المنح الدراسية ونصائح دراسية للطلاب</p>
         </div>
-      </div>
-      
-      {/* المحتوى الرئيسي */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
-        {/* القائمة الجانبية */}
-        <div className="space-y-6 lg:col-span-1">
-          {/* التصنيفات */}
-          <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-            <h3 className="mb-3 text-lg font-bold">التصنيفات</h3>
-            <div className="space-y-2">
-              <button
-                onClick={() => filterByTag('')}
-                className={`block w-full rounded-md px-3 py-2 text-right hover:bg-gray-100 dark:hover:bg-gray-800 ${!tagFilter ? 'bg-primary/10 text-primary' : 'text-gray-700 dark:text-gray-300'}`}
-              >
-                جميع المقالات
-              </button>
-              
-              {tags.map((tag) => (
-                <button
-                  key={tag.id}
-                  onClick={() => filterByTag(tag.slug || tag.id)}
-                  className={`block w-full rounded-md px-3 py-2 text-right hover:bg-gray-100 dark:hover:bg-gray-800 ${tagFilter === (tag.slug || tag.id) ? 'bg-primary/10 text-primary' : 'text-gray-700 dark:text-gray-300'}`}
-                >
-                  {tag.name}
-                </button>
-              ))}
+
+        {/* Search Bar */}
+        <div className="flex flex-col md:flex-row gap-4 mb-8 max-w-3xl mx-auto">
+          <form onSubmit={handleSearch} className="flex-1 flex">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="بحث عن مقال"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-4 w-full"
+              />
             </div>
-          </div>
+            <Button type="submit" className="ms-2">بحث</Button>
+          </form>
           
-          {/* آخر المقالات - للهواتف المحمولة فقط */}
-          <div className="block lg:hidden">
-            <h3 className="mb-3 text-lg font-bold">آخر المقالات</h3>
-            <div className="space-y-3">
-              {articles.slice(0, 3).map((article) => (
-                <div key={article.id} className="flex gap-3">
-                  <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-gray-200 dark:bg-gray-800">
-                    {article.thumbnail && (
-                      <img
-                        src={article.thumbnail}
-                        alt={article.title}
-                        className="h-full w-full object-cover"
-                      />
-                    )}
-                  </div>
-                  <div>
-                    <Link href={`/articles/${article.slug || article.id}`}>
-                      <h4 className="line-clamp-2 font-medium hover:text-primary">{article.title}</h4>
-                    </Link>
-                    <div className="mt-1 flex items-center text-xs text-gray-500">
-                      <Clock className="ml-1 h-3 w-3" />
-                      {article.createdAt && formatDate(article.createdAt)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          {hasActiveFilters && (
+            <Button 
+              variant="ghost" 
+              onClick={clearAllFilters}
+              className="whitespace-nowrap"
+            >
+              <X className="h-4 w-4 ml-2" />
+              مسح التصفية
+            </Button>
+          )}
         </div>
-        
-        {/* قائمة المقالات */}
-        <div className="lg:col-span-3">
-          {loading ? (
-            // شاشة التحميل
-            <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3' : 'grid-cols-1'}`}>
-              {Array.from({ length: 6 }).map((_, index) => (
-                <div key={index} className="animate-pulse rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
-                  <div className="h-48 bg-gray-200 dark:bg-gray-800"></div>
-                  <div className="p-4 space-y-3">
-                    <div className="h-6 bg-gray-200 dark:bg-gray-800 rounded w-3/4"></div>
-                    <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-full"></div>
-                    <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-1/2"></div>
-                  </div>
-                </div>
+
+        {/* Categories Tabs */}
+        <Tabs 
+          defaultValue="all" 
+          value={activeCategory}
+          onValueChange={handleCategoryChange}
+          className="mb-8"
+        >
+          <div className="flex justify-center">
+            <TabsList className="grid grid-flow-col auto-cols-max gap-1 overflow-x-auto max-w-full p-1">
+              <TabsTrigger 
+                value="all"
+                className="px-4 py-2"
+              >
+                الكل
+              </TabsTrigger>
+              
+              {categories.map((category) => (
+                <TabsTrigger 
+                  key={category.id} 
+                  value={category.slug}
+                  className="px-4 py-2 whitespace-nowrap"
+                >
+                  {category.name}
+                </TabsTrigger>
               ))}
+            </TabsList>
+          </div>
+        </Tabs>
+
+        {/* Content Area */}
+        <div className="mt-6">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center min-h-[400px]">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+              <p>جاري تحميل المقالات...</p>
             </div>
           ) : error ? (
-            // رسالة خطأ
-            <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-900/20">
-              <p className="text-red-600 dark:text-red-400">{error}</p>
-              <Button variant="outline" className="mt-4" onClick={() => router.refresh()}>
+            <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+              <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+              <h3 className="text-xl font-semibold">حدث خطأ</h3>
+              <p className="text-muted-foreground mt-2">{error}</p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => window.location.reload()}
+              >
                 إعادة المحاولة
               </Button>
             </div>
           ) : articles.length === 0 ? (
-            // لا توجد نتائج
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center dark:border-gray-800 dark:bg-gray-900">
-              <h3 className="mb-2 text-xl font-semibold">لم يتم العثور على مقالات</h3>
-              <p className="mb-4 text-gray-600 dark:text-gray-300">حاول تغيير معايير البحث أو التصنيف</p>
-              <Button variant="outline" onClick={() => {
-                setSearchQuery('');
-                filterByTag('');
-              }}>
-                عرض جميع المقالات
-              </Button>
-            </div>
-          ) : viewMode === 'grid' ? (
-            // عرض الشبكة
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
-              {articles.map((article) => (
-                <ArticleCard key={article.id} article={article} />
-              ))}
+            <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+              <h3 className="text-xl font-semibold">لا توجد مقالات</h3>
+              <p className="text-muted-foreground mt-2">لم يتم العثور على مقالات تطابق معايير البحث</p>
+              {hasActiveFilters && (
+                <Button 
+                  variant="outline" 
+                  className="mt-4"
+                  onClick={clearAllFilters}
+                >
+                  عرض كل المقالات
+                </Button>
+              )}
             </div>
           ) : (
-            // عرض القائمة
-            <div className="space-y-4">
-              {articles.map((article) => (
-                <ArticleListItem key={article.id} article={article} />
-              ))}
-            </div>
-          )}
-          
-          {/* الترقيم */}
-          {!loading && articles.length > 0 && totalPages > 1 && (
-            <div className="mt-8 flex justify-center">
-              <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-800">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => goToPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="flex items-center gap-1 text-gray-600 dark:text-gray-300"
-                >
-                  <MoveRight className="h-4 w-4" />
-                  <span className="sr-only">السابق</span>
-                </Button>
-                
-                <div className="border-r border-l border-gray-200 px-3 py-1 text-sm dark:border-gray-800">
-                  <span className="font-medium text-primary">{currentPage}</span>
-                  <span className="mx-1 text-gray-600 dark:text-gray-300">/</span>
-                  <span className="text-gray-600 dark:text-gray-300">{totalPages}</span>
-                </div>
-                
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => goToPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="flex items-center gap-1 text-gray-600 dark:text-gray-300"
-                >
-                  <MoveLeft className="h-4 w-4" />
-                  <span className="sr-only">التالي</span>
-                </Button>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {articles.map((article) => (
+                  <ArticleCard key={article.id} article={article} />
+                ))}
               </div>
-            </div>
+
+              {totalPages > 1 && (
+                <div className="mt-12 flex justify-center">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                  />
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

@@ -1,12 +1,11 @@
-import type { Metadata } from 'next';
-
-import SuccessStoriesPage from '@/components/success-stories/success-stories-page';
+import { Metadata } from 'next';
+import { SuccessStoriesPage } from '@/components/success-stories/success-stories-page';
 
 export const metadata: Metadata = {
-  title: 'قصص نجاح | منصة فولسكو',
-  description: 'قصص نجاح ملهمة لطلاب حصلوا على منح دراسية وتجارب حقيقية للطلاب للهام الآخرين',
+  title: 'قصص نجاح | منصة المنح الدراسية',
+  description: 'قصص نجاح الطلاب الذين حصلوا على منح دراسية وتجاربهم التعليمية',
 };
 
-export default function SuccessStories() {
+export default function SuccessStoriesPage() {
   return <SuccessStoriesPage />;
 }

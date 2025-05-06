@@ -1,279 +1,322 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, Calendar, User, Tag, Share2, Printer, Loader2 } from 'lucide-react';
+import Image from 'next/image';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { TypographyH1, TypographyP } from '@/components/ui/typography';
+import { Card, CardContent } from '@/components/ui/card';
+import { Share2, ArrowRight, Loader2, AlertCircle, CalendarIcon, User, Clock, Tag } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
-interface ArticleDetailProps {
+type ArticleDetailProps = {
   slug: string;
-}
+};
 
-export default function ArticleDetail({ slug }: ArticleDetailProps) {
+type Article = {
+  id: number;
+  title: string;
+  content: string;
+  excerpt?: string;
+  slug: string;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt?: string;
+  thumbnailUrl?: string;
+  categoryName?: string;
+  categoryId?: number;
+  categorySlug?: string;
+  authorName?: string;
+  authorId?: number;
+  readTime?: number;
+  tags?: string[];
+};
+
+export function ArticleDetail({ slug }: ArticleDetailProps) {
   const router = useRouter();
-  const [article, setArticle] = useState<any>(null);
-  const [relatedArticles, setRelatedArticles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const pathname = usePathname();
   
+  const [article, setArticle] = useState<Article | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [relatedArticles, setRelatedArticles] = useState<Article[]>([]);
+
+  // جلب بيانات المقال
   useEffect(() => {
     const fetchArticle = async () => {
       try {
-        setLoading(true);
+        setIsLoading(true);
         setError(null);
-        
-        // جلب بيانات المقال
+
         const response = await fetch(`/api/posts/${slug}`);
         if (!response.ok) {
-          throw new Error(`فشل جلب بيانات المقال: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        // التعامل مع هيكل البيانات من API
-        const articleData = data.data || data;
-        setArticle(articleData);
-        
-        // جلب المقالات ذات الصلة
-        try {
-          // يمكن استخدام tags أو التصنيفات لجلب مقالات مشابهة
-          const tag = articleData.tags && articleData.tags.length > 0 ? 
-            (typeof articleData.tags[0] === 'object' ? articleData.tags[0].slug || articleData.tags[0].id : articleData.tags[0]) : 
-            null;
-            
-          if (tag) {
-            const relatedResponse = await fetch(`/api/posts?tag=${tag}&limit=3`);
-            if (relatedResponse.ok) {
-              const relatedData = await relatedResponse.json();
-              // استبعاد المقال الحالي من المقالات ذات الصلة
-              const filteredRelated = (relatedData.data || relatedData).filter(
-                (item: any) => item.id !== articleData.id
-              ).slice(0, 3);
-              
-              setRelatedArticles(filteredRelated);
-            }
-          } else {
-            // جلب أحدث المقالات إذا لم يكن هناك تصنيفات
-            const recentResponse = await fetch(`/api/posts?limit=3`);
-            if (recentResponse.ok) {
-              const recentData = await recentResponse.json();
-              // استبعاد المقال الحالي من المقالات الأخيرة
-              const filteredRecent = (recentData.data || recentData).filter(
-                (item: any) => item.id !== articleData.id
-              ).slice(0, 3);
-              
-              setRelatedArticles(filteredRecent);
-            }
+          if (response.status === 404) {
+            throw new Error('\u0627\u0644\u0645\u0642\u0627\u0644 \u063a\u064a\u0631 \u0645\u0648\u062c\u0648\u062f');
           }
-        } catch (relatedErr) {
-          // عدم إظهار أخطاء للمقالات ذات الصلة
-          console.error('Error fetching related articles:', relatedErr);
+          throw new Error(`\u062e\u0637\u0623 \u0641\u064a \u062c\u0644\u0628 \u0627\u0644\u0645\u0642\u0627\u0644: ${response.status}`);
         }
-      } catch (err) {
-        console.error('Error fetching article details:', err);
-        setError(err instanceof Error ? err.message : 'حدث خطأ أثناء جلب بيانات المقال');
+
+        const data = await response.json();
+        setArticle(data);
+
+        // بعد جلب المقال، نجلب المقالات ذات الصلة
+        if (data && data.categoryId) {
+          fetchRelatedArticles(data.id, data.categoryId);
+        }
+      } catch (error) {
+        console.error('Error fetching article:', error);
+        setError(error instanceof Error ? error.message : '\u062d\u062f\u062b \u062e\u0637\u0623 \u063a\u064a\u0631 \u0645\u0639\u0631\u0648\u0641');
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
-    
-    fetchArticle();
+
+    if (slug) {
+      fetchArticle();
+    }
   }, [slug]);
 
-  // مشاركة المقال
-  const shareArticle = () => {
-    if (typeof window !== 'undefined' && navigator.share) {
-      navigator.share({
-        title: article?.title || 'مقال',
-        text: article?.excerpt || article?.content?.slice(0, 100) || '',
-        url: window.location.href
-      }).catch(err => console.error('Error sharing:', err));
-    } else {
-      // نسخ الرابط إلى الحافظة
-      navigator.clipboard.writeText(window.location.href)
-        .then(() => alert('تم نسخ الرابط'))
-        .catch(err => console.error('Error copying link:', err));
+  // جلب مقالات ذات صلة
+  const fetchRelatedArticles = async (articleId: number, categoryId: number) => {
+    try {
+      const response = await fetch(`/api/posts?category=${categoryId}&limit=3`);
+      if (!response.ok) throw new Error('Failed to fetch related articles');
+      
+      const data = await response.json();
+      // فلترة المقال الحالي من النتائج
+      const filteredArticles = data.data.filter((a: Article) => a.id !== articleId);
+      setRelatedArticles(filteredArticles.slice(0, 3));
+    } catch (error) {
+      console.error('Error fetching related articles:', error);
     }
   };
-  
-  // طباعة المقال
-  const printArticle = () => {
-    window.print();
+
+  // يتعامل مع مشاركة المقال
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: article?.title || '\u0645\u0642\u0627\u0644',
+          text: article?.excerpt || '\u0627\u0643\u062a\u0634\u0641 \u0647\u0630\u0627 \u0627\u0644\u0645\u0642\u0627\u0644 \u0627\u0644\u0645\u0641\u064a\u062f',
+          url: window.location.href,
+        });
+      } else {
+        // نسخ الرابط إلى الحافظة إذا كانت واجهة المشاركة غير متوفرة
+        await navigator.clipboard.writeText(window.location.href);
+        alert('\u062a\u0645 \u0646\u0633\u062e \u0627\u0644\u0631\u0627\u0628\u0637 \u0625\u0644\u0649 \u0627\u0644\u062d\u0627\u0641\u0638\u0629');
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
   };
 
-  if (loading) {
+  // يعود للصفحة السابقة
+  const handleBack = () => {
+    router.back();
+  };
+
+  if (isLoading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-          <p className="mt-4 text-lg">جاري تحميل المقال...</p>
-        </div>
+      <div className="container py-12 flex flex-col items-center justify-center min-h-[50vh]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg">\u062c\u0627\u0631\u064a \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0645\u0642\u0627\u0644...</p>
       </div>
     );
   }
 
-  if (error || !article) {
+  if (error) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-12 text-center sm:px-6 lg:px-8">
-        <div className="rounded-lg border border-red-200 bg-red-50 p-6 dark:border-red-800 dark:bg-red-900/20">
-          <h2 className="mb-4 text-xl font-bold text-red-700 dark:text-red-400">لم يتم العثور على المقال</h2>
-          <p className="mb-4 text-red-600 dark:text-red-300">{error || 'لم يتم العثور على المقال المطلوب. ربما تم حذفه أو نقله.'}</p>
-          <div className="flex justify-center gap-3">
-            <Button variant="outline" onClick={() => router.back()}>
-              العودة للصفحة السابقة
-            </Button>
-            <Link href="/articles">
-              <Button>عرض جميع المقالات</Button>
-            </Link>
-          </div>
-        </div>
+      <div className="container py-12 flex flex-col items-center justify-center min-h-[50vh] text-center">
+        <AlertCircle className="h-16 w-16 text-destructive mb-4" />
+        <h2 className="text-2xl font-bold mb-2">\u062d\u062f\u062b \u062e\u0637\u0623</h2>
+        <p className="text-muted-foreground mb-6">{error}</p>
+        <Button onClick={handleBack} variant="outline">
+          <ArrowRight className="ml-2 h-4 w-4" />
+          \u0627\u0644\u0639\u0648\u062f\u0629 \u0644\u0644\u0645\u0642\u0627\u0644\u0627\u062a
+        </Button>
       </div>
     );
   }
 
-  // تاريخ النشر
-  const publishDate = article.createdAt
-    ? formatDate(article.createdAt)
-    : article.publishedAt
-    ? formatDate(article.publishedAt)
-    : null;
+  if (!article) {
+    return (
+      <div className="container py-12 flex flex-col items-center justify-center min-h-[50vh] text-center">
+        <AlertCircle className="h-16 w-16 text-destructive mb-4" />
+        <h2 className="text-2xl font-bold mb-2">\u0644\u0645 \u064a\u062a\u0645 \u0627\u0644\u0639\u062b\u0648\u0631 \u0639\u0644\u0649 \u0627\u0644\u0645\u0642\u0627\u0644</h2>
+        <p className="text-muted-foreground mb-6">\u0644\u0645 \u064a\u062a\u0645 \u0627\u0644\u0639\u062b\u0648\u0631 \u0639\u0644\u0649 \u0627\u0644\u0645\u0642\u0627\u0644 \u0627\u0644\u0645\u0637\u0644\u0648\u0628</p>
+        <Button onClick={handleBack} variant="outline">
+          <ArrowRight className="ml-2 h-4 w-4" />
+          \u0627\u0644\u0639\u0648\u062f\u0629 \u0644\u0644\u0645\u0642\u0627\u0644\u0627\u062a
+        </Button>
+      </div>
+    );
+  }
+
+  const {
+    title,
+    content,
+    excerpt,
+    thumbnailUrl,
+    createdAt,
+    publishedAt,
+    categoryName,
+    categorySlug,
+    authorName,
+    readTime,
+    tags
+  } = article;
+
+  const formattedDate = formatDate(publishedAt || createdAt);
+  const imageUrl = thumbnailUrl || '/images/placeholder-article.jpg';
 
   return (
-    <div className="article-detail-container pb-12">
-      {/* التنقل الفرعي */}
-      <div className="bg-gray-50 dark:bg-gray-900 py-2 mb-6">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex text-sm">
-            <Link href="/" className="text-gray-500 hover:text-primary transition-colors">
-              الرئيسية
-            </Link>
-            <ChevronRight className="mx-2 h-4 w-4 text-gray-400" />
-            <Link href="/articles" className="text-gray-500 hover:text-primary transition-colors">
-              المقالات
-            </Link>
-            <ChevronRight className="mx-2 h-4 w-4 text-gray-400" />
-            <span className="text-primary truncate">{article.title}</span>
-          </nav>
+    <div className="bg-background min-h-screen py-8 md:py-12">
+      <div className="container px-4 md:px-6">
+        {/* شريط الملاحة الثانوي */}
+        <div className="flex items-center justify-between mb-8">
+          <button
+            onClick={handleBack}
+            className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowRight className="ml-1 h-4 w-4" />
+            \u0627\u0644\u0639\u0648\u062f\u0629
+          </button>
+          
+          <button
+            onClick={handleShare}
+            className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Share2 className="ml-1 h-4 w-4" />
+            \u0645\u0634\u0627\u0631\u0643\u0629
+          </button>
         </div>
-      </div>
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-4xl">
-          {/* رأس المقال */}
-          <div className="mb-8 text-center">
-            <h1 className="mb-4 text-3xl font-bold text-gray-900 dark:text-white md:text-4xl">
-              {article.title}
-            </h1>
-
-            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-              {publishDate && (
-                <div className="flex items-center">
-                  <Calendar className="ml-1.5 h-4 w-4 text-primary" />
-                  <span>{publishDate}</span>
-                </div>
+        {/* ا\u0644\u0645\u062d\u062a\u0648\u0649 \u0627\u0644\u0631\u0626\u064a\u0633\u064a */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* \u0627\u0644\u0645\u0642\u0627\u0644 */}
+          <div className="lg:col-span-3 space-y-8">
+            {/* \u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0627\u0644\u0645\u0642\u0627\u0644 */}
+            <div>
+              {categoryName && categorySlug && (
+                <Link href={`/articles?category=${categorySlug}`} className="inline-block mb-4">
+                  <Badge variant="outline">{categoryName}</Badge>
+                </Link>
               )}
               
-              {article.author && (
-                <div className="flex items-center">
-                  <User className="ml-1.5 h-4 w-4 text-primary" />
-                  <span>{typeof article.author === 'object' ? article.author.name : article.author}</span>
-                </div>
-              )}
+              <TypographyH1 className="mb-4">{title}</TypographyH1>
               
-              {article.tags && article.tags.length > 0 && (
+              {excerpt && (
+                <TypographyP className="text-lg text-muted-foreground mb-6">
+                  {excerpt}
+                </TypographyP>
+              )}
+
+              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                {authorName && (
+                  <div className="flex items-center">
+                    <User className="h-4 w-4 ml-1" />
+                    <span>{authorName}</span>
+                  </div>
+                )}
+                
                 <div className="flex items-center">
-                  <Tag className="ml-1.5 h-4 w-4 text-primary" />
-                  <div className="flex flex-wrap gap-1">
-                    {article.tags.map((tag: any, index: number) => (
-                      <span key={typeof tag === 'object' ? tag.id : `tag-${index}`}>
-                        <Link 
-                          href={`/articles?tag=${typeof tag === 'object' ? tag.slug || tag.id : tag}`}
-                          className="hover:text-primary hover:underline"
-                        >
-                          {typeof tag === 'object' ? tag.name : tag}
-                        </Link>
-                        {index < article.tags.length - 1 && <span className="mx-1">,</span>}
-                      </span>
-                    ))}
-                  </div>
+                  <CalendarIcon className="h-4 w-4 ml-1" />
+                  <span>{formattedDate}</span>
                 </div>
-              )}
-            </div>
-          </div>
-          
-          {/* صورة المقال */}
-          {article.thumbnail && (
-            <div className="mb-8">
-              <img 
-                src={article.thumbnail} 
-                alt={article.title} 
-                className="h-auto w-full rounded-lg object-cover"
-              />
-            </div>
-          )}
-          
-          {/* محتوى المقال */}
-          <div className="article-content mb-8">
-            <div className="prose max-w-none dark:prose-invert">
-              {article.content ? (
-                article.content.includes('<') ? (
-                  <div dangerouslySetInnerHTML={{ __html: article.content }} />
-                ) : (
-                  <p>{article.content}</p>
-                )
-              ) : (
-                <p className="text-gray-600 dark:text-gray-400">لا يوجد محتوى للمقال</p>
-              )}
-            </div>
-          </div>
-          
-          {/* أزرار المشاركة */}
-          <div className="mb-12 flex flex-wrap justify-center gap-3">
-            <Button variant="outline" onClick={shareArticle} className="flex items-center">
-              <Share2 className="ml-2 h-4 w-4" />
-              مشاركة
-            </Button>
-            <Button variant="outline" onClick={printArticle} className="flex items-center">
-              <Printer className="ml-2 h-4 w-4" />
-              طباعة
-            </Button>
-          </div>
-          
-          {/* مقالات ذات صلة */}
-          {relatedArticles.length > 0 && (
-            <div className="border-t border-gray-200 pt-8 dark:border-gray-800">
-              <h2 className="mb-6 text-2xl font-bold">مقالات ذات صلة</h2>
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
-                {relatedArticles.map((related) => (
-                  <div key={related.id} className="group overflow-hidden rounded-lg border border-gray-200 bg-white hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
-                    {related.thumbnail && (
-                      <Link href={`/articles/${related.slug || related.id}`} className="block h-40 overflow-hidden bg-gray-200 dark:bg-gray-800">
-                        <img
-                          src={related.thumbnail}
-                          alt={related.title}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-                      </Link>
-                    )}
-                    <div className="p-4">
-                      <Link href={`/articles/${related.slug || related.id}`}>
-                        <h3 className="line-clamp-2 font-bold transition-colors group-hover:text-primary">
-                          {related.title}
-                        </h3>
-                      </Link>
-                      {related.createdAt && (
-                        <div className="mt-2 flex items-center text-xs text-gray-500 dark:text-gray-400">
-                          <Calendar className="ml-1 h-3 w-3" />
-                          {formatDate(related.createdAt)}
-                        </div>
-                      )}
-                    </div>
+                
+                {readTime && (
+                  <div className="flex items-center">
+                    <Clock className="h-4 w-4 ml-1" />
+                    <span>\u0648\u0642\u062a \u0627\u0644\u0642\u0631\u0627\u0621\u0629: {readTime} \u062f\u0642\u064a\u0642\u0629</span>
                   </div>
-                ))}
+                )}
               </div>
             </div>
-          )}
+            
+            {/* \u0635\u0648\u0631\u0629 \u0627\u0644\u0645\u0642\u0627\u0644 */}
+            <div className="aspect-video relative rounded-lg overflow-hidden">
+              <Image
+                src={imageUrl}
+                alt={title}
+                fill
+                priority
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 70vw, 60vw"
+              />
+            </div>
+            
+            {/* \u0645\u062d\u062a\u0648\u0649 \u0627\u0644\u0645\u0642\u0627\u0644 */}
+            <div className="prose prose-lg dark:prose-invert prose-stone max-w-none">
+              <div dangerouslySetInnerHTML={{ __html: content }} />
+            </div>
+
+            {/* \u0627\u0644\u0648\u0633\u0648\u0645 */}
+            {tags && tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-6 border-t">
+                <div className="flex items-center">
+                  <Tag className="h-4 w-4 ml-2" />
+                  <span>\u0627\u0644\u0648\u0633\u0648\u0645:</span>
+                </div>
+                
+                {tags.map((tag, index) => (
+                  <Badge key={index} variant="secondary" className="font-normal">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {/* \u0627\u0644\u0634\u0631\u064a\u0637 \u0627\u0644\u062c\u0627\u0646\u0628\u064a */}
+          <div className="space-y-8">
+            {/* \u0645\u0642\u0627\u0644\u0627\u062a \u0630\u0627\u062a \u0635\u0644\u0629 */}
+            {relatedArticles && relatedArticles.length > 0 && (
+              <div className="bg-card rounded-lg border p-6">
+                <h3 className="text-xl font-semibold mb-4">\u0645\u0642\u0627\u0644\u0627\u062a \u0630\u0627\u062a \u0635\u0644\u0629</h3>
+                
+                <div className="space-y-4">
+                  {relatedArticles.map((relatedArticle) => (
+                    <div key={relatedArticle.id} className="flex gap-3 pb-4 border-b last:border-0 last:pb-0">
+                      <div className="flex-shrink-0 w-20 h-16 relative rounded overflow-hidden">
+                        <Link href={`/articles/${relatedArticle.slug}`}>
+                          <Image
+                            src={relatedArticle.thumbnailUrl || '/images/placeholder-article.jpg'}
+                            alt={relatedArticle.title}
+                            fill
+                            className="object-cover"
+                          />
+                        </Link>
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm line-clamp-2 mb-1">
+                          <Link href={`/articles/${relatedArticle.slug}`} className="hover:text-primary">
+                            {relatedArticle.title}
+                          </Link>
+                        </h4>
+                        
+                        <div className="text-xs text-muted-foreground">
+                          {formatDate(relatedArticle.publishedAt || relatedArticle.createdAt)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                {categorySlug && (
+                  <div className="mt-4 pt-4 border-t">
+                    <Link href={`/articles?category=${categorySlug}`}>
+                      <Button variant="outline" className="w-full text-sm" size="sm">
+                        \u0627\u0644\u0645\u0632\u064a\u062f \u0645\u0646 \u0645\u0642\u0627\u0644\u0627\u062a {categoryName}
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
