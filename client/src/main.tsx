@@ -6,6 +6,7 @@ import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "./lib/theme-provider";
 import { SiteSettingsProvider } from "./hooks/use-site-settings";
+import { AuthProvider } from "./hooks/use-auth";
 
 createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>

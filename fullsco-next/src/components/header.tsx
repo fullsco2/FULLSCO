@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Search, ChevronDown, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { UserMenu } from "@/components/user-menu";
+import UserMenu from "@/components/user-menu";
 
 interface HeaderProps {
   settings?: {

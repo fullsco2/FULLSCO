@@ -4,112 +4,114 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
-import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from './ui/button';
+import {
+  LogOut,
+  Settings,
+  User,
+  UserPlus,
+} from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Loader2, LogOut, Settings, User, LogIn } from 'lucide-react';
 
-export function UserMenu() {
+export default function UserMenu() {
   const { user, isLoading, logoutMutation } = useAuth();
+  const { toast } = useToast();
   const router = useRouter();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   const handleLogout = async () => {
-    setMenuOpen(false);
-    await logoutMutation.mutateAsync();
+    try {
+      await logoutMutation.mutateAsync();
+      setIsOpen(false);
+      toast({
+        title: 'تم تسجيل الخروج',
+        description: 'تم تسجيل خروجك بنجاح',
+      });
+      router.push('/');
+    } catch (error) {
+      toast({
+        title: 'خطأ',
+        description: 'حدث خطأ أثناء تسجيل الخروج',
+        variant: 'destructive',
+      });
+    }
   };
 
-  // إذا كان يتم تحميل حالة المستخدم
+  // Display loading state
   if (isLoading) {
     return (
-      <Button variant="ghost" size="sm" disabled className="h-9 w-9 rounded-full p-0">
-        <Loader2 className="h-5 w-5 animate-spin" />
+      <Button variant="ghost" size="sm" className="w-9 px-0" disabled>
+        <span className="h-5 w-5 animate-pulse rounded-full bg-muted"></span>
       </Button>
     );
   }
 
-  // إذا لم يكن المستخدم مسجل الدخول
-  if (!user) {
+  // User is logged in
+  if (user) {
     return (
-      <Button variant="default" size="sm" onClick={() => router.push('/auth')}>
-        <LogIn className="ml-2 h-4 w-4" />
-        تسجيل الدخول
-      </Button>
-    );
-  }
-
-  // إذا كان المستخدم مسجل الدخول
-  return (
-    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-9 w-9 rounded-full p-0">
-          {user.avatar ? (
-            <img
-              src={user.avatar}
-              alt={user.username}
-              className="h-9 w-9 rounded-full"
-            />
-          ) : (
-            <User className="h-5 w-5" />
+      <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="relative h-9 rounded-full border-primary/30 bg-gradient-to-r from-primary/10 to-primary/5 px-3 shadow-sm transition-all hover:shadow-md hover:from-primary/15 hover:to-primary/10 hover:border-primary/40"
+          >
+            <span className="font-medium text-primary">{user.name || user.username}</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56" align="end">
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-medium">{user.name || user.username}</p>
+              {user.email && <p className="text-xs text-muted-foreground truncate">{user.email}</p>}
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {user.role === 'admin' && (
+            <DropdownMenuItem asChild>
+              <Link href="/admin/dashboard" className="cursor-pointer">
+                <Settings className="ml-2 h-4 w-4" />
+                <span>لوحة التحكم</span>
+              </Link>
+            </DropdownMenuItem>
           )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" sideOffset={5} className="w-56">
-        <div className="flex items-center p-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-            {user.avatar ? (
-              <img
-                src={user.avatar}
-                alt={user.username}
-                className="h-9 w-9 rounded-full"
-              />
-            ) : (
-              <User className="h-6 w-6" />
-            )}
-          </div>
-          <div className="mr-2 flex flex-col space-y-0.5">
-            <p className="text-sm font-medium">{user.name || user.username}</p>
-            <p className="text-xs text-muted-foreground">{user.email}</p>
-          </div>
-        </div>
-        <DropdownMenuSeparator />
-        {user.role === 'admin' && (
           <DropdownMenuItem asChild>
-            <Link href="/admin" className="cursor-pointer">
-              لوحة التحكم
+            <Link href="/profile" className="cursor-pointer">
+              <User className="ml-2 h-4 w-4" />
+              <span>ملفي الشخصي</span>
             </Link>
           </DropdownMenuItem>
-        )}
-        <DropdownMenuItem asChild>
-          <Link href="/profile" className="cursor-pointer">
-            الملف الشخصي
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/settings" className="cursor-pointer">
-            <Settings className="ml-2 h-4 w-4" />
-            الإعدادات
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={handleLogout}
-          disabled={logoutMutation.isPending}
-          className="cursor-pointer"
-        >
-          {logoutMutation.isPending ? (
-            <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-          ) : (
+          <DropdownMenuSeparator />
+          <DropdownMenuItem 
+            className="cursor-pointer text-red-600 focus:text-red-600" 
+            onClick={handleLogout}
+            disabled={logoutMutation.isPending}
+          >
             <LogOut className="ml-2 h-4 w-4" />
-          )}
-          تسجيل الخروج
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+            <span>{logoutMutation.isPending ? 'جاري تسجيل الخروج...' : 'تسجيل الخروج'}</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
+  // User is not logged in
+  return (
+    <Button 
+      variant="outline" 
+      className="items-center gap-2 rounded-full border-primary/30 bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-sm hover:shadow-md hover:from-primary/15 hover:to-primary/10 hover:border-primary/40 transition-all duration-300"
+      onClick={() => router.push('/auth')}
+    >
+      <UserPlus className="h-4 w-4" />
+      <span>تسجيل الدخول</span>
+    </Button>
   );
 }
