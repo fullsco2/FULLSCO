@@ -10,7 +10,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/hooks/use-auth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePages } from "@/hooks/use-pages";
@@ -21,7 +20,8 @@ const Header = () => {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { user } = useAuth();
+  // التعليق المؤقت لاستخدام useAuth حتى يتم تصليح المشكلة
+  const user = null; // بدلاً من const { user } = useAuth();
   const isMobile = useIsMobile();
   const { settings, isLoading: settingsLoading } = useSiteSettings();
   // استخدام قائمة الهيدر الديناميكية
