@@ -2,10 +2,15 @@ import { Metadata } from 'next';
 import { ScholarshipsPage } from '@/components/scholarships/scholarships-page';
 
 export const metadata: Metadata = {
-  title: 'المنح الدراسية | منصة المنح الدراسية',
-  description: 'استكشف المنح الدراسية المتاحة حول العالم وتصفح حسب البلد أو المجال الدراسي',
+  title: 'المنح الدراسية | منصة المنح',
+  description: 'تصفح أحدث المنح الدراسية المتاحة في مختلف الجامعات العالمية وابحث عن المنحة المناسبة لك',
+  openGraph: {
+    title: 'المنح الدراسية | منصة المنح',
+    description: 'تصفح أحدث المنح الدراسية المتاحة في مختلف الجامعات العالمية وابحث عن المنحة المناسبة لك',
+    type: 'website',
+  },
 };
 
-export default function ScholarshipsPageRoot() {
+export default function ScholarshipsPageRoute() {
   return <ScholarshipsPage />;
 }
