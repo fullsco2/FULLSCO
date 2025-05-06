@@ -34,7 +34,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/ui/dialog.tsx";
 
 export default function SuccessStoriesPage() {
   const router = useRouter();

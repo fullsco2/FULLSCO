@@ -40,7 +40,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/ui/dialog.tsx";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,

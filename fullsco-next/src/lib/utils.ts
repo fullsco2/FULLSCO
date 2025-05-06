@@ -1,72 +1,57 @@
-import { type ClassValue, clsx } from "clsx";
+import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatDate(date: Date | string) {
-  return new Date(date).toLocaleDateString("ar-SA", {
+export function formatDate(date: Date) {
+  return new Intl.DateTimeFormat("ar-SA", {
     day: "numeric",
     month: "long",
     year: "numeric",
-  });
+  }).format(date);
 }
 
-export function truncateText(text: string, maxLength: number) {
+export function formatDateTime(date: Date) {
+  return new Intl.DateTimeFormat("ar-SA", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+  }).format(date);
+}
+
+export function formatNumber(num: number) {
+  return new Intl.NumberFormat("ar-SA").format(num);
+}
+
+// حساب مدة القراءة لمحتوى نصي
+export function calculateReadingTime(content: string): number {
+  const words = content.trim().split(/\s+/).length;
+  const readingTime = Math.ceil(words / 200); // متوسط 200 كلمة في الدقيقة
+  return readingTime <= 1 ? 1 : readingTime;
+}
+
+// تحويل الرابط الكامل إلى مسار نسبي
+export function toRelativeUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.pathname + urlObj.search + urlObj.hash;
+  } catch (e) {
+    // إذا لم يكن رابط كامل، افترض أنه مسار نسبي بالفعل
+    return url;
+  }
+}
+
+// تحقق من صحة البريد الإلكتروني
+export function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// تقصير النص مع إضافة "..."
+export function truncateText(text: string, maxLength: number = 100): string {
   if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength) + "...";
+  return text.substring(0, maxLength) + "...";
 }
-
-export function slugify(str: string) {
-  return str
-    .toLowerCase()
-    .replace(/[^\u0621-\u064A\u0660-\u0669a-z0-9 -]/g, "") // keep Arabic, English letters, numbers and hyphens
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
-}
-
-export function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
-
-export function getYouTubeEmbedUrl(url: string) {
-  const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
-  const match = url.match(regExp);
-  return match && match[7].length === 11 ? match[7] : null;
-}
-
-export function removeTags(str: string) {
-  if (!str) return "";
-  return str.replace(/<\/?[^>]+(>|$)/g, "");
-}
-
-export function isRTL(text: string) {
-  const rtlChars = "\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC";
-  const rtlDirCheck = new RegExp(`^[^${rtlChars}]*?[${rtlChars}]`);
-  return rtlDirCheck.test(text);
-}
-
-export const storage = {
-  getItem: (key: string) => {
-    if (typeof window !== "undefined") {
-      return window.localStorage.getItem(key);
-    }
-    return null;
-  },
-  setItem: (key: string, value: string) => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(key, value);
-    }
-  },
-  removeItem: (key: string) => {
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(key);
-    }
-  },
-};
