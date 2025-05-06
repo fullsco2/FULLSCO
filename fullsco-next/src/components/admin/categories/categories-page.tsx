@@ -31,7 +31,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog.tsx";
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 
 export default function CategoriesPage() {

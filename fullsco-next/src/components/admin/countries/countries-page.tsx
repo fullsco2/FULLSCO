@@ -23,7 +23,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/components/ui/table/index";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +31,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog.tsx";
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 
 export default function CountriesPage() {
@@ -127,7 +127,7 @@ export default function CountriesPage() {
     if (!code || code.length !== 2) return "🌍";
     
     // تحويل رمز الدولة إلى رموز اليونيكود للعلم
-    const codePoints = [...code.toUpperCase()].map(c => c.codePointAt(0)! + 127397);
+    const codePoints = Array.from(code.toUpperCase()).map(c => c.codePointAt(0)! + 127397);
     return String.fromCodePoint(...codePoints);
   };
 
