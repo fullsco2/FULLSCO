@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'wouter';
-import { useAuth } from '@/hooks/use-auth';
 import { 
   LayoutDashboard, 
   GraduationCap, 
@@ -143,11 +142,12 @@ interface SidebarProps {
   isMobileOpen: boolean;
   onClose: () => void;
   activeItem?: string;  // العنصر النشط في السايدبار
+  user: any; // بيانات المستخدم
+  onLogout: () => void; // دالة تسجيل الخروج
 }
 
-const Sidebar = ({ isMobileOpen, onClose, activeItem }: SidebarProps) => {
+const Sidebar = ({ isMobileOpen, onClose, activeItem, user, onLogout }: SidebarProps) => {
   const [location] = useLocation();
-  const { logout, user } = useAuth();
   const isMobile = useIsMobile();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
@@ -236,7 +236,7 @@ const Sidebar = ({ isMobileOpen, onClose, activeItem }: SidebarProps) => {
   const handleLogout = () => {
     // إعادة تمكين التمرير قبل تسجيل الخروج
     document.body.style.overflow = '';
-    logout();
+    onLogout();
   };
 
   const isActive = (path: string) => {

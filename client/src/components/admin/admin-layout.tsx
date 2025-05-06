@@ -7,8 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ThemeProvider } from '@/lib/theme-provider';
 import { NotificationProvider } from '@/components/notifications/notification-provider';
-import { useQuery } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
+import { useAuth } from '@/hooks/use-auth';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -89,6 +88,21 @@ export default function AdminLayout({
   if (!user) {
     return null; // سيتم إعادة التوجيه بواسطة useEffect
   }
+  
+  // نقوم بتعريف دالة تسجيل الخروج التي سنمررها للشريط الجانبي
+  const handleLogout = async () => {
+    try {
+      const response = await apiRequest("POST", "/api/auth/logout");
+      if (response.ok) {
+        // نعيد توجيه المستخدم بعد تسجيل الخروج
+        setLocation('/admin/login');
+        // إعادة تحميل الصفحة لتطبيق تغييرات تسجيل الخروج
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error("خطأ في تسجيل الخروج", error);
+    }
+  };
 
   return (
     <TooltipProvider>
@@ -98,6 +112,8 @@ export default function AdminLayout({
             isMobileOpen={sidebarOpen} 
             onClose={() => setSidebarOpen(false)}
             activeItem={activeItem}
+            user={user}
+            onLogout={handleLogout}
           />
           
           <div className={`flex-1 transition-all duration-300 ${isMobile ? "mr-0" : "mr-64"}`}>
