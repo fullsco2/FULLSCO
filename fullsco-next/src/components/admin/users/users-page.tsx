@@ -122,20 +122,46 @@ export function UsersPage() {
     setError(null);
 
     try {
+      // التحقق من حالة المصادقة أولاً
+      const authResponse = await fetch('/api/auth/me');
+      
+      if (!authResponse.ok) {
+        throw new Error('يجب تسجيل الدخول لعرض بيانات المستخدمين');
+      }
+      
+      // محاولة جلب قائمة المستخدمين
       const response = await fetch('/api/users');
 
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('ليس لديك صلاحية الوصول إلى هذه البيانات');
+        }
         throw new Error(`فشل في جلب قائمة المستخدمين: ${response.status}`);
       }
 
       const data = await response.json();
-
+      
+      // معالجة البيانات المستلمة من API
       if (data && Array.isArray(data)) {
         setUsers(data);
       } else if (data && data.data && Array.isArray(data.data)) {
         setUsers(data.data);
       } else {
-        throw new Error('فشل في جلب بيانات المستخدمين');
+        // عرض بيانات المستخدم الحالي على الأقل
+        if (currentUser) {
+          setUsers([{
+            id: currentUser.id,
+            username: currentUser.username,
+            email: currentUser.email,
+            fullName: currentUser.fullName || '',
+            role: currentUser.role || 'admin',
+            isActive: true,
+            createdAt: currentUser.createdAt || new Date().toISOString(),
+            updatedAt: currentUser.updatedAt || new Date().toISOString(),
+          }]);
+        } else {
+          throw new Error('فشل في جلب بيانات المستخدمين');
+        }
       }
     } catch (err) {
       console.error('Error fetching users:', err);

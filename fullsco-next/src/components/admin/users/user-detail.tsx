@@ -71,6 +71,14 @@ export function UserDetail({ userId }: { userId: string }) {
     setError(null);
 
     try {
+      // التحقق من المستخدم الحالي
+      const authResponse = await fetch('/api/auth/me');
+      
+      if (!authResponse.ok) {
+        throw new Error('يجب تسجيل الدخول لعرض بيانات المستخدمين');
+      }
+      
+      // محاولة جلب بيانات المستخدم
       const response = await fetch(`/api/users/${userId}`);
 
       if (!response.ok) {
@@ -85,28 +93,28 @@ export function UserDetail({ userId }: { userId: string }) {
         throw new Error(`خطأ في جلب بيانات المستخدم: ${response.status}`);
       }
 
-      // محاكاة الرد عندما لا يكون الـ API جاهزًا
-      // في التطبيق الفعلي، سيتم جلب البيانات من الخادم
-      // API مع رد مثل { success: true, data: { ... } }
-      setUser({
-        id: parseInt(userId),
-        username: 'admin',
-        email: 'admin@example.com',
-        fullName: 'مدير النظام',
-        role: 'admin',
-        isActive: true,
-        createdAt: '2025-01-01T10:00:00Z',
-        updatedAt: '2025-05-01T14:30:00Z',
-        lastLogin: '2025-05-05T09:15:00Z',
-      });
+      // معالجة الرد من API
+      const data = await response.json();
       
-      // سيتم استبدال هذا بالشكل التالي:
-      // const data = await response.json();
-      // if (data.success && data.data) {
-      //   setUser(data.data);
-      // } else {
-      //   throw new Error(data.message || 'فشل في جلب بيانات المستخدم');
-      // }
+      // التحقق من بنية البيانات المستلمة
+      if (data && data.id) {
+        // إذا كانت البيانات مباشرة في الرد
+        setUser(data);
+      } else if (data && data.data && data.data.id) {
+        // إذا كانت البيانات مغلفة في حقل data
+        setUser(data.data);
+      } else if (data && Array.isArray(data) && data.length > 0) {
+        // إذا كان الرد عبارة عن مصفوفة
+        const userItem = data.find(item => item.id === parseInt(userId));
+        if (userItem) {
+          setUser(userItem);
+        } else {
+          throw new Error('لم يتم العثور على المستخدم في البيانات المستلمة');
+        }
+      } else {
+        // إذا لم يتم العثور على بيانات صالحة
+        throw new Error('بنية البيانات المستلمة غير متوقعة');
+      }
       
     } catch (err) {
       console.error('Error fetching user details:', err);
