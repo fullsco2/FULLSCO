@@ -5,7 +5,6 @@ import Sidebar from '@/components/admin/sidebar';
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { ThemeProvider } from '@/lib/theme-provider';
 import { NotificationProvider } from '@/components/notifications/notification-provider';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -28,30 +27,15 @@ export default function AdminLayout({
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  // استخدام useQuery بدلاً من useAuth للحصول على بيانات المستخدم
-  const { data: user, isLoading, isError } = useQuery({
-    queryKey: ["/api/auth/me"],
-    queryFn: async () => {
-      try {
-        const response = await apiRequest("GET", "/api/auth/me");
-        if (!response.ok) {
-          throw new Error("غير مصادق عليه");
-        }
-        const data = await response.json();
-        return data.data;
-      } catch (error) {
-        throw new Error("غير مصادق عليه");
-      }
-    },
-    retry: false
-  });
+  // استخدام useAuth للحصول على بيانات المستخدم
+  const { user, isLoading, logout } = useAuth();
   
   // إعادة التوجيه إلى صفحة تسجيل الدخول إذا لم يكن المستخدم مسجل الدخول
   useEffect(() => {
-    if ((!isLoading && !user) || isError) {
+    if (!isLoading && !user) {
       setLocation('/admin/login');
     }
-  }, [user, isLoading, isError, setLocation]);
+  }, [user, isLoading, setLocation]);
 
   // إغلاق السايدبار عند النقر خارجه على الجوال
   useEffect(() => {
@@ -90,18 +74,10 @@ export default function AdminLayout({
   }
   
   // نقوم بتعريف دالة تسجيل الخروج التي سنمررها للشريط الجانبي
-  const handleLogout = async () => {
-    try {
-      const response = await apiRequest("POST", "/api/auth/logout");
-      if (response.ok) {
-        // نعيد توجيه المستخدم بعد تسجيل الخروج
-        setLocation('/admin/login');
-        // إعادة تحميل الصفحة لتطبيق تغييرات تسجيل الخروج
-        window.location.reload();
-      }
-    } catch (error) {
-      console.error("خطأ في تسجيل الخروج", error);
-    }
+  const handleLogout = () => {
+    logout();
+    // نعيد توجيه المستخدم بعد تسجيل الخروج
+    setLocation('/admin/login');
   };
 
   return (
