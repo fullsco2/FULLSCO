@@ -1,44 +1,47 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { getUserFromSession } from '@/lib/auth';
+import { NextRequest, NextResponse } from "next/server";
+import { isAuthenticated } from "./lib/auth";
+
+// المسارات التي تتطلب مصادقة
+const protectedRoutes = [
+  "/admin",
+  "/profile",
+  "/settings",
+];
+
+// المسارات التي يجب ألا يتم الوصول إليها في حالة تسجيل الدخول
+const authRoutes = [
+  "/auth",
+];
 
 export async function middleware(request: NextRequest) {
-  const path = request.nextUrl.pathname;
+  const { pathname } = request.nextUrl;
   
-  // الصفحات التي يمكن الوصول إليها بدون مصادقة
-  const publicPaths = ['/auth', '/', '/scholarships', '/articles', '/success-stories'];
-  const isPublicPath = publicPaths.some(publicPath => 
-    path === publicPath || path.startsWith(`${publicPath}/`)
-  );
-  
-  // التحقق مما إذا كان المسار هو مسار لوحة التحكم
-  const isAdminPath = path.startsWith('/admin');
-  
-  // الحصول على معلومات المستخدم من الجلسة
-  const user = getUserFromSession(request);
-  
-  // إعادة توجيه المستخدم غير المصادق من صفحات لوحة التحكم إلى صفحة تسجيل الدخول
-  if (isAdminPath && !user) {
-    return NextResponse.redirect(new URL('/auth', request.url));
+  // التحقق من حالة المصادقة
+  const isUserAuthenticated = await isAuthenticated();
+
+  // إذا كان المسار يتطلب مصادقة وليس هناك مستخدم مسجل الدخول
+  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
+  if (isProtectedRoute && !isUserAuthenticated) {
+    const url = new URL("/auth", request.url);
+    url.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(url);
   }
-  
-  // التحقق من دور المستخدم للوصول إلى لوحة التحكم
-  if (isAdminPath && user && user.role !== 'admin') {
-    return NextResponse.redirect(new URL('/', request.url));
+
+  // إذا كان المسار خاص بالمصادقة والمستخدم مسجل الدخول بالفعل
+  const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
+  if (isAuthRoute && isUserAuthenticated) {
+    return NextResponse.redirect(new URL("/", request.url));
   }
-  
-  // إعادة توجيه المستخدم المصادق من صفحة تسجيل الدخول إلى لوحة التحكم
-  if (path === '/auth' && user) {
-    return NextResponse.redirect(new URL(user.role === 'admin' ? '/admin/dashboard' : '/', request.url));
-  }
-  
+
   return NextResponse.next();
 }
 
-// تكوين المسارات التي سيتم تطبيق الوسيط عليها
 export const config = {
   matcher: [
-    '/admin/:path*',
-    '/auth'
+    /*
+     * مطابقة جميع المسارات المحمية ومسارات المصادقة
+     */
+    ...protectedRoutes,
+    ...authRoutes,
   ],
 };

@@ -1,11 +1,10 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useAuth } from '@/hooks/use-auth';
-import { Button } from '@/components/ui/button';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 import {
   Form,
   FormControl,
@@ -13,50 +12,83 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Loader2, EyeIcon, EyeOffIcon } from 'lucide-react';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
-// مخطط التحقق من بيانات نموذج التسجيل
-const registerFormSchema = z
-  .object({
-    username: z.string().min(3, {
-      message: 'اسم المستخدم يجب أن يكون على الأقل 3 أحرف',
-    }),
-    email: z.string().email({
-      message: 'الرجاء إدخال بريد إلكتروني صحيح',
-    }),
-    password: z.string().min(6, {
-      message: 'كلمة المرور يجب أن تكون على الأقل 6 أحرف',
-    }),
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: 'كلمات المرور غير متطابقة',
-    path: ['confirmPassword'],
-  });
+// مخطط التحقق من بيانات التسجيل
+const registerSchema = z.object({
+  username: z.string().min(3, {
+    message: "اسم المستخدم يجب أن يحتوي على الأقل 3 أحرف",
+  }),
+  email: z.string().email({
+    message: "البريد الإلكتروني غير صالح",
+  }),
+  password: z.string().min(6, {
+    message: "كلمة المرور يجب أن تحتوي على الأقل 6 أحرف",
+  }),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "كلمات المرور غير متطابقة",
+  path: ["confirmPassword"],
+});
 
-type RegisterFormValues = z.infer<typeof registerFormSchema>;
+type RegisterFormValues = z.infer<typeof registerSchema>;
 
-export function RegisterForm() {
-  const { registerMutation } = useAuth();
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+export function RegisterForm({ callbackUrl }: { callbackUrl?: string }) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
+  // إعداد نموذج react-hook-form
   const form = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerFormSchema),
+    resolver: zodResolver(registerSchema),
     defaultValues: {
-      username: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
+      username: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
     },
   });
 
-  const onSubmit = async (values: RegisterFormValues) => {
-    const { confirmPassword, ...userData } = values;
-    await registerMutation.mutateAsync(userData);
-  };
+  async function onSubmit(data: RegisterFormValues) {
+    setIsLoading(true);
+    
+    try {
+      // إزالة حقل تأكيد كلمة المرور قبل الإرسال
+      const { confirmPassword, ...registerData } = data;
+      
+      const response = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(registerData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "حدث خطأ أثناء إنشاء الحساب");
+      }
+
+      toast({
+        title: "تم إنشاء الحساب بنجاح",
+        description: "مرحبًا بك في منصة المنح الدراسية",
+      });
+
+      // إعادة توجيه المستخدم إلى الصفحة المطلوبة أو الصفحة الرئيسية
+      router.push(callbackUrl || "/");
+      router.refresh(); // تحديث حالة المستخدم في واجهة المستخدم
+    } catch (error) {
+      console.error("Registration error:", error);
+      toast({
+        title: "فشل إنشاء الحساب",
+        description: error instanceof Error ? error.message : "حدث خطأ غير معروف",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
     <Form {...form}>
@@ -69,9 +101,9 @@ export function RegisterForm() {
               <FormLabel>اسم المستخدم</FormLabel>
               <FormControl>
                 <Input 
-                  placeholder="اكتب اسم المستخدم" 
+                  placeholder="أدخل اسم المستخدم" 
                   {...field} 
-                  disabled={registerMutation.isPending}
+                  disabled={isLoading}
                 />
               </FormControl>
               <FormMessage />
@@ -86,10 +118,10 @@ export function RegisterForm() {
               <FormLabel>البريد الإلكتروني</FormLabel>
               <FormControl>
                 <Input 
-                  type="email" 
-                  placeholder="example@domain.com" 
+                  type="email"
+                  placeholder="أدخل البريد الإلكتروني" 
                   {...field} 
-                  disabled={registerMutation.isPending}
+                  disabled={isLoading}
                 />
               </FormControl>
               <FormMessage />
@@ -103,28 +135,12 @@ export function RegisterForm() {
             <FormItem>
               <FormLabel>كلمة المرور</FormLabel>
               <FormControl>
-                <div className="relative">
-                  <Input 
-                    type={showPassword ? "text" : "password"} 
-                    placeholder="اكتب كلمة المرور" 
-                    {...field} 
-                    disabled={registerMutation.isPending}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute left-0 top-0 h-full px-3 py-1 text-muted-foreground"
-                    onClick={() => setShowPassword(!showPassword)}
-                    disabled={registerMutation.isPending}
-                  >
-                    {showPassword ? (
-                      <EyeOffIcon className="h-4 w-4" />
-                    ) : (
-                      <EyeIcon className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
+                <Input 
+                  type="password" 
+                  placeholder="أدخل كلمة المرور" 
+                  {...field} 
+                  disabled={isLoading}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -137,56 +153,20 @@ export function RegisterForm() {
             <FormItem>
               <FormLabel>تأكيد كلمة المرور</FormLabel>
               <FormControl>
-                <div className="relative">
-                  <Input 
-                    type={showConfirmPassword ? "text" : "password"} 
-                    placeholder="أعد كتابة كلمة المرور" 
-                    {...field} 
-                    disabled={registerMutation.isPending}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute left-0 top-0 h-full px-3 py-1 text-muted-foreground"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    disabled={registerMutation.isPending}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOffIcon className="h-4 w-4" />
-                    ) : (
-                      <EyeIcon className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
+                <Input 
+                  type="password" 
+                  placeholder="أعد إدخال كلمة المرور" 
+                  {...field} 
+                  disabled={isLoading}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <div className="pt-2">
-          <Button 
-            type="submit" 
-            className="w-full" 
-            disabled={registerMutation.isPending}
-          >
-            {registerMutation.isPending ? (
-              <>
-                <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                جاري إنشاء الحساب...
-              </>
-            ) : (
-              'إنشاء حساب'
-            )}
-          </Button>
-        </div>
-        {registerMutation.isError && (
-          <div className="mt-4 rounded-md bg-destructive/10 p-3 text-center text-sm text-destructive">
-            {registerMutation.error instanceof Error
-              ? registerMutation.error.message
-              : 'حدث خطأ أثناء إنشاء الحساب'}
-          </div>
-        )}
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading ? "جاري إنشاء الحساب..." : "إنشاء حساب جديد"}
+        </Button>
       </form>
     </Form>
   );
