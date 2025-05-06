@@ -15,7 +15,7 @@ import {
   Clock,
   ArrowUpRight
 } from 'lucide-react';
-import { useAuth } from '@/hooks/use-auth';
+// import { useAuth } from '@/hooks/use-auth';
 import AdminLayout from '@/components/admin/admin-layout';
 import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,7 +51,9 @@ const recentActivities = [
 ];
 
 const AdminDashboard = () => {
-  const { user } = useAuth();
+  // Temporarily removed useAuth to fix context issues
+  // const { user } = useAuth();
+  const user = { name: 'Admin' }; // Mock user for now
   
   // Fetch statistics
   const { data: scholarships } = useQuery({
