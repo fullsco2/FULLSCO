@@ -1,98 +1,98 @@
-// api/register/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { getUserByUsername, hashPassword, createSessionCookie } from '@/lib/auth';
-import { db } from '@/lib/db';
-import { users } from '@/shared/schema';
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+import bcrypt from "bcrypt";
+import { db } from "@/lib/db";
+import { users, insertUserSchema } from "@/shared/schema";
+import { eq } from "drizzle-orm";
 
-// مسار إنشاء حساب جديد - POST /api/register
-export async function POST(req: NextRequest) {
+export async function POST(request: Request) {
   try {
-    // استخراج بيانات المستخدم من طلب JSON
-    const { username, email, password } = await req.json();
+    const body = await request.json();
 
-    // التحقق من وجود جميع الحقول المطلوبة
+    // التحقق من البيانات المقدمة
+    const { username, email, password } = body;
+
     if (!username || !email || !password) {
       return NextResponse.json(
-        { message: 'يرجى توفير جميع الحقول المطلوبة' },
+        { 
+          success: false, 
+          message: "يرجى توفير جميع البيانات المطلوبة" 
+        },
         { status: 400 }
       );
     }
 
-    // التحقق من صحة تنسيق البريد الإلكتروني
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    // التحقق من عدم وجود مستخدم بنفس اسم المستخدم
+    const existingUsername = await db.query.users.findFirst({
+      where: eq(users.username, username),
+    });
+
+    if (existingUsername) {
       return NextResponse.json(
-        { message: 'يرجى توفير بريد إلكتروني صحيح' },
+        { 
+          success: false, 
+          message: "اسم المستخدم موجود بالفعل", 
+        },
         { status: 400 }
       );
     }
 
-    // التحقق من طول كلمة المرور
-    if (password.length < 8) {
-      return NextResponse.json(
-        { message: 'يجب أن تكون كلمة المرور 8 أحرف على الأقل' },
-        { status: 400 }
-      );
-    }
+    // التحقق من عدم وجود مستخدم بنفس البريد الإلكتروني
+    const existingEmail = await db.query.users.findFirst({
+      where: eq(users.email, email),
+    });
 
-    // التحقق من عدم وجود المستخدم بالفعل
-    const existingUser = await getUserByUsername(username);
-    if (existingUser) {
+    if (existingEmail) {
       return NextResponse.json(
-        { message: 'اسم المستخدم مستخدم بالفعل' },
+        { 
+          success: false, 
+          message: "البريد الإلكتروني مستخدم بالفعل", 
+        },
         { status: 400 }
       );
     }
 
     // تشفير كلمة المرور
-    const hashedPassword = await hashPassword(password);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // إنشاء المستخدم الجديد في قاعدة البيانات
-    const [newUser] = await db
-      .insert(users)
-      .values({
+    // إنشاء المستخدم
+    try {
+      const newUser = await db.insert(users).values({
         username,
         email,
         password: hashedPassword,
-        role: 'user', // دور افتراضي للمستخدمين الجدد
+        name: username, // يمكن استخدام اسم المستخدم كاسم افتراضي
+        role: "user", // دور افتراضي
+        isActive: true,
+        emailVerified: false,
         createdAt: new Date(),
         updatedAt: new Date(),
-      })
-      .returning();
+      }).returning();
 
-    // إنشاء جلسة للمستخدم
-    const sessionCookie = createSessionCookie({
-      id: newUser.id,
-      username: newUser.username,
-      email: newUser.email,
-      role: newUser.role,
-      name: newUser.name,
-      avatar: newUser.avatar,
-    });
+      // إنشاء cookie للجلسة
+      const cookieStore = cookies();
+      cookieStore.set("user_id", String(newUser[0].id), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 60 * 60 * 24 * 7, // 7 أيام
+        path: "/",
+      });
 
-    // إنشاء الرد مع كوكي الجلسة
-    const response = NextResponse.json(
-      {
-        id: newUser.id,
-        username: newUser.username,
-        email: newUser.email,
-        role: newUser.role,
-        name: newUser.name,
-        avatar: newUser.avatar,
-        createdAt: newUser.createdAt,
-        updatedAt: newUser.updatedAt,
-      },
-      { status: 201 }
-    );
+      // إرجاع بيانات المستخدم بدون كلمة المرور
+      const { password: _, ...userWithoutPassword } = newUser[0];
 
-    // إضافة كوكي الجلسة إلى الرد
-    response.cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.options);
-
-    return response;
-  } catch (error: any) {
-    console.error('Error during registration:', error);
+      return NextResponse.json(userWithoutPassword, { status: 201 });
+    } catch (error) {
+      console.error("Error creating user:", error);
+      return NextResponse.json(
+        { success: false, message: "حدث خطأ أثناء إنشاء المستخدم" },
+        { status: 500 }
+      );
+    }
+  } catch (error) {
+    console.error("Registration error:", error);
     return NextResponse.json(
-      { message: `خطأ أثناء التسجيل: ${error.message}` },
+      { success: false, message: "حدث خطأ أثناء التسجيل" },
       { status: 500 }
     );
   }

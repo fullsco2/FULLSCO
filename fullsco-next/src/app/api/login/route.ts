@@ -1,65 +1,68 @@
-// api/login/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { getUserByUsername, verifyPassword, createSessionCookie } from '@/lib/auth';
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+import bcrypt from "bcrypt";
+import { db } from "@/lib/db";
+import { users } from "@/shared/schema";
+import { eq } from "drizzle-orm";
 
-// مسار تسجيل الدخول - POST /api/login
-export async function POST(req: NextRequest) {
+export async function POST(request: Request) {
   try {
-    // استخراج بيانات المستخدم من طلب JSON
-    const { username, password } = await req.json();
+    const body = await request.json();
+    const { username, password } = body;
 
-    // التحقق من وجود اسم المستخدم وكلمة المرور
     if (!username || !password) {
       return NextResponse.json(
-        { message: 'يرجى توفير اسم المستخدم وكلمة المرور' },
+        { success: false, message: "يرجى توفير اسم المستخدم وكلمة المرور" },
         { status: 400 }
       );
     }
 
-    // البحث عن المستخدم في قاعدة البيانات
-    const user = await getUserByUsername(username);
+    // البحث عن المستخدم باستخدام اسم المستخدم أو البريد الإلكتروني
+    const user = await db.query.users.findFirst({
+      where: (
+        username.includes("@") 
+          ? eq(users.email, username) 
+          : eq(users.username, username)
+      ),
+    });
 
-    // التحقق من وجود المستخدم وصحة كلمة المرور
-    if (!user || !(await verifyPassword(password, user.password))) {
+    if (!user) {
       return NextResponse.json(
-        { message: 'اسم المستخدم أو كلمة المرور غير صحيحة' },
+        { success: false, message: "اسم المستخدم أو كلمة المرور غير صحيحة" },
         { status: 401 }
       );
     }
 
-    // إنشاء جلسة للمستخدم
-    const sessionCookie = createSessionCookie({
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-      name: user.name,
-      avatar: user.avatar,
+    // التحقق من كلمة المرور
+    const passwordMatch = await bcrypt.compare(password, user.password);
+
+    if (!passwordMatch) {
+      return NextResponse.json(
+        { success: false, message: "اسم المستخدم أو كلمة المرور غير صحيحة" },
+        { status: 401 }
+      );
+    }
+
+    // إنشاء JWT token إذا كان مطلوبًا
+    // const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
+
+    // إنشاء cookie للجلسة
+    const cookieStore = cookies();
+    cookieStore.set("user_id", String(user.id), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 7, // 7 أيام
+      path: "/",
     });
 
-    // إنشاء الرد مع كوكي الجلسة
-    const response = NextResponse.json(
-      {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        name: user.name,
-        avatar: user.avatar,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      },
-      { status: 200 }
-    );
+    // إرجاع بيانات المستخدم بدون كلمة المرور
+    const { password: _, ...userWithoutPassword } = user;
 
-    // إضافة كوكي الجلسة إلى الرد
-    response.cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.options);
-
-    return response;
-  } catch (error: any) {
-    console.error('Error during login:', error);
+    return NextResponse.json(userWithoutPassword, { status: 200 });
+  } catch (error) {
+    console.error("Login error:", error);
     return NextResponse.json(
-      { message: `خطأ أثناء تسجيل الدخول: ${error.message}` },
+      { success: false, message: "حدث خطأ أثناء تسجيل الدخول" },
       { status: 500 }
     );
   }

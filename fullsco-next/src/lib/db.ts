@@ -1,25 +1,44 @@
-// src/lib/db.ts
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import * as schema from '@/shared/schema';
+import { drizzle } from "drizzle-orm/postgres-js";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+import postgres from "postgres";
+import * as schema from "@/shared/schema";
 
-// إنشاء اتصال قاعدة البيانات
-const connectionString = process.env.DATABASE_URL || '';
-const client = postgres(connectionString);
+/**
+ * استخدم متغير البيئة DATABASE_URL للاتصال بقاعدة البيانات
+ * إذا لم يكن متوفراً، استخدم قيمة افتراضية للتطوير المحلي
+ */
+const connectionString = process.env.DATABASE_URL || "postgres://user:password@localhost:5432/db";
 
-// إنشاء مثيل لقاعدة البيانات باستخدام Drizzle ORM
-export const db = drizzle(client, { schema });
+// إنشاء client منفصل للاستعلامات
+const queryClient = postgres(connectionString);
 
-// تأكد من إغلاق الاتصال عند انتهاء التطبيق (في بيئة الإنتاج)
-if (process.env.NODE_ENV === 'production') {
-  process.on('SIGTERM', () => {
-    console.log('SIGTERM signal received: closing database connection');
-    client.end().then(() => {
-      console.log('Database connection closed');
-      process.exit(0);
-    });
-  });
+// إنشاء client منفصل للتهجير
+const migrationClient = postgres(connectionString, { max: 1 });
+
+// تهيئة Drizzle مع المخطط
+export const db = drizzle(queryClient, { schema });
+
+/**
+ * دالة لتشغيل عملية التهجير (migrations)
+ * استخدمها عندما تحتاج إلى تحديث هيكل قاعدة البيانات
+ */
+export async function runMigrations() {
+  try {
+    console.log("بدء عملية التهجير...");
+    
+    await migrate(drizzle(migrationClient), { migrationsFolder: "drizzle" });
+    
+    console.log("اكتملت عملية التهجير بنجاح");
+  } catch (error) {
+    console.error("فشل في تنفيذ عمليات التهجير:", error);
+    throw error;
+  } finally {
+    // إغلاق client التهجير
+    await migrationClient.end();
+  }
 }
 
-// تصدير الاتصال لاستخدامه في أجزاء أخرى من التطبيق
-export { client };
+// التأكد من إغلاق اتصال قاعدة البيانات عند إيقاف التطبيق
+process.on("beforeExit", async () => {
+  await queryClient.end();
+});

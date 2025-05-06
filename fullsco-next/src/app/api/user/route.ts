@@ -1,27 +1,38 @@
-// api/user/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { getUserFromSessionServer } from '@/lib/auth';
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { users } from "@/shared/schema";
+import { eq } from "drizzle-orm";
 
-// مسار جلب بيانات المستخدم الحالي - GET /api/user
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    // جلب المستخدم من الجلسة
-    const user = getUserFromSessionServer();
+    // الحصول على معرف المستخدم من cookie
+    const cookieStore = cookies();
+    const userId = cookieStore.get("user_id")?.value;
 
-    // التحقق من وجود المستخدم
+    if (!userId) {
+      return NextResponse.json(null, { status: 401 });
+    }
+
+    // البحث عن المستخدم في قاعدة البيانات
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, parseInt(userId)),
+    });
+
     if (!user) {
-      return NextResponse.json(
-        { message: 'غير مصرح له' },
-        { status: 401 }
-      );
+      // إذا لم يتم العثور على المستخدم، قم بإزالة ملف تعريف cookie
+      cookieStore.delete("user_id");
+      return NextResponse.json(null, { status: 401 });
     }
 
     // إرجاع بيانات المستخدم بدون كلمة المرور
-    return NextResponse.json(user, { status: 200 });
-  } catch (error: any) {
-    console.error('Error fetching user:', error);
+    const { password: _, ...userWithoutPassword } = user;
+
+    return NextResponse.json(userWithoutPassword, { status: 200 });
+  } catch (error) {
+    console.error("Error fetching user:", error);
     return NextResponse.json(
-      { message: `خطأ في جلب بيانات المستخدم: ${error.message}` },
+      { success: false, message: "حدث خطأ أثناء جلب بيانات المستخدم" },
       { status: 500 }
     );
   }

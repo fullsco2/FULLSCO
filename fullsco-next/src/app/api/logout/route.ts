@@ -1,27 +1,18 @@
-// api/logout/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { removeSessionCookie } from '@/lib/auth';
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 
-// مسار تسجيل الخروج - POST /api/logout
-export async function POST(req: NextRequest) {
+export async function POST() {
   try {
-    // إنشاء كوكي الخروج
-    const logoutCookie = removeSessionCookie();
+    // حذف ملف تعريف cookie
+    const cookieStore = cookies();
+    cookieStore.delete("user_id");
 
-    // إنشاء الرد مع كوكي الخروج
-    const response = NextResponse.json(
-      { message: 'تم تسجيل الخروج بنجاح' },
-      { status: 200 }
-    );
-
-    // إضافة كوكي الخروج إلى الرد
-    response.cookies.set(logoutCookie.name, logoutCookie.value, logoutCookie.options);
-
-    return response;
-  } catch (error: any) {
-    console.error('Error during logout:', error);
+    // إرجاع استجابة نجاح
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error) {
+    console.error("Logout error:", error);
     return NextResponse.json(
-      { message: `خطأ أثناء تسجيل الخروج: ${error.message}` },
+      { success: false, message: "حدث خطأ أثناء تسجيل الخروج" },
       { status: 500 }
     );
   }
