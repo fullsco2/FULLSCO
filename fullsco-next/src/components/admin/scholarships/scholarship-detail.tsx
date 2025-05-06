@@ -67,35 +67,89 @@ export function ScholarshipDetail({ scholarshipId }: { scholarshipId: string }) 
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // محاكاة جلب بيانات المنحة
+  // جلب بيانات المنحة من API
   useEffect(() => {
     const fetchScholarship = async () => {
       setIsLoading(true);
       try {
-        // في التطبيق الحقيقي، سيتم جلب البيانات من API
-        // هنا نقوم بمحاكاة جلب البيانات للعرض
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // التحقق من حالة المصادقة أولاً
+        const authResponse = await fetch('/api/auth/me');
         
-        // بيانات عينة للعرض
-        setScholarship({
-          id: parseInt(scholarshipId),
-          title: 'منحة جامعة هارفارد للطلاب الدوليين',
-          university: 'جامعة هارفارد',
-          description: 'تقدم جامعة هارفارد منحاً دراسية للطلاب الدوليين المتميزين الذين يرغبون في متابعة دراستهم في إحدى أعرق الجامعات في العالم. تغطي المنحة جميع الرسوم الدراسية وتوفر راتباً شهرياً وتأميناً صحياً وتذكرة سفر سنوية.',
-          country: 'الولايات المتحدة',
-          deadline: '2025-12-15',
-          level: 'بكالوريوس',
-          fundingType: 'full',
-          amount: '50000',
-          url: 'https://example.com/scholarship',
-          requirements: '- معدل تراكمي لا يقل عن 3.5\n- إجادة اللغة الإنجليزية\n- خطابات توصية\n- السيرة الذاتية',
-          benefits: '- تغطية كاملة للرسوم الدراسية\n- راتب شهري\n- تأمين صحي\n- تذكرة سفر سنوية',
-          status: 'active',
-          featured: true,
-          categories: ['علوم حاسوب', 'علوم اجتماعية'],
-          createdAt: '2024-05-01T12:00:00Z',
-          updatedAt: '2024-05-01T12:00:00Z',
-        });
+        if (!authResponse.ok) {
+          throw new Error('يجب تسجيل الدخول لعرض تفاصيل المنحة');
+        }
+        
+        // جلب بيانات المنحة من API
+        const response = await fetch(`/api/scholarships/${scholarshipId}`);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error('المنحة الدراسية غير موجودة');
+          }
+          throw new Error(`خطأ في جلب بيانات المنحة: ${response.status}`);
+        }
+        
+        // محاولة جلب بيانات مفصلة أولاً
+        try {
+          const data = await response.json();
+          
+          // التحقق من بنية البيانات المستلمة
+          if (data && data.id) {
+            // إذا كانت البيانات مباشرة في الرد
+            setScholarship(data);
+          } else if (data && data.data && data.data.id) {
+            // إذا كانت البيانات مغلفة في حقل data
+            setScholarship(data.data);
+          } else if (data && Array.isArray(data)) {
+            // إذا كان الرد عبارة عن مصفوفة
+            const scholarshipItem = data.find(item => item.id === parseInt(scholarshipId));
+            if (scholarshipItem) {
+              setScholarship(scholarshipItem);
+            } else {
+              // إذا لم يتم العثور على المنحة في المصفوفة
+              throw new Error('لم يتم العثور على المنحة الدراسية');
+            }
+          } else if (data && Array.isArray(data.data)) {
+            // إذا كانت المصفوفة مغلفة في حقل data
+            const scholarshipItem = data.data.find(item => item.id === parseInt(scholarshipId));
+            if (scholarshipItem) {
+              setScholarship(scholarshipItem);
+            } else {
+              throw new Error('لم يتم العثور على المنحة الدراسية');
+            }
+          } else {
+            // إذا لم يتم العثور على بيانات صالحة
+            throw new Error('بنية البيانات المستلمة غير متوقعة');
+          }
+        } catch (parseError) {
+          // إذا فشل تحليل JSON، نحاول جلب قائمة كاملة والبحث عن المنحة
+          console.error('Error parsing scholarship data:', parseError);
+          
+          // جلب قائمة المنح الدراسية
+          const fallbackResponse = await fetch('/api/scholarships');
+          if (!fallbackResponse.ok) {
+            throw new Error('فشل في جلب قائمة المنح الدراسية');
+          }
+          
+          const allData = await fallbackResponse.json();
+          let scholarshipList = [];
+          
+          if (allData && Array.isArray(allData)) {
+            scholarshipList = allData;
+          } else if (allData && allData.data && Array.isArray(allData.data)) {
+            scholarshipList = allData.data;
+          } else if (allData && allData.success && allData.data && Array.isArray(allData.data)) {
+            scholarshipList = allData.data;
+          }
+          
+          // البحث عن المنحة المطلوبة
+          const scholarshipItem = scholarshipList.find(item => item.id === parseInt(scholarshipId));
+          if (scholarshipItem) {
+            setScholarship(scholarshipItem);
+          } else {
+            throw new Error('لم يتم العثور على المنحة الدراسية');
+          }
+        }
       } catch (error) {
         console.error('Error fetching scholarship details:', error);
         toast({
@@ -111,25 +165,48 @@ export function ScholarshipDetail({ scholarshipId }: { scholarshipId: string }) 
     fetchScholarship();
   }, [scholarshipId, toast]);
 
-  // محاكاة حذف منحة دراسية
+  // حذف منحة دراسية عبر API
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      // في التطبيق الحقيقي، سيتم حذف المنحة عبر API
-      // هنا نقوم بمحاكاة الحذف
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // التحقق من حالة المصادقة أولاً
+      const authResponse = await fetch('/api/auth/me');
       
+      if (!authResponse.ok) {
+        throw new Error('يجب تسجيل الدخول لحذف المنحة');
+      }
+
+      // محاولة حذف المنحة عبر API
+      const response = await fetch(`/api/scholarships/${scholarshipId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('ليس لديك صلاحية حذف المنحة');
+        }
+        if (response.status === 404) {
+          throw new Error('المنحة الدراسية غير موجودة');
+        }
+        throw new Error(`خطأ في حذف المنحة: ${response.status}`);
+      }
+      
+      // تم الحذف بنجاح
       toast({
         title: 'تم حذف المنحة الدراسية',
         description: 'تم حذف المنحة الدراسية بنجاح',
       });
       
+      // العودة إلى قائمة المنح
       router.push('/admin/scholarships');
     } catch (error) {
       console.error('Error deleting scholarship:', error);
       toast({
         title: 'خطأ في الحذف',
-        description: 'حدث خطأ أثناء محاولة حذف المنحة الدراسية',
+        description: error instanceof Error ? error.message : 'حدث خطأ أثناء محاولة حذف المنحة الدراسية',
         variant: 'destructive',
       });
     } finally {

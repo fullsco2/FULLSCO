@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
-import AuthPage from '@/components/auth/auth-page';
+import { AuthPage } from '@/components/auth/auth-page';
 
 export const metadata: Metadata = {
   title: 'تسجيل الدخول | منصة فولسكو',
-  description: 'قم بتسجيل الدخول أو إنشاء حساب جديد للوصول إلى خدمات المنصة',
+  description: 'قم بتسجيل الدخول أو إنشاء حساب جديد في منصة فولسكو',
 };
 
-export default function Auth() {
+export default function AuthRoute() {
   return <AuthPage />;
 }
