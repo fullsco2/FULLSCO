@@ -9,6 +9,7 @@ import Articles from "@/pages/articles";
 import ArticleDetail from "@/pages/article-detail";
 import StaticPage from "@/pages/static-page";
 import PageById from "@/pages/page-by-id";
+import { AuthProvider } from "@/hooks/use-auth";
 
 // استيراد صفحات قصص النجاح بشكل كسول
 const SuccessStories = lazy(() => import("@/pages/success-stories"));
@@ -120,15 +121,16 @@ function App() {
 
   return (
     <SiteSettingsProvider>
-      <ScholarshipsProvider>
-        <PostsProvider>
-          <SuccessStoriesProvider>
-            <FilterOptionsProvider>
-              <TooltipProvider>
-                {/* مكون لتطبيق ألوان إعدادات الموقع */}
-                <ThemeColors />
-                {!isAdminPage && <Header />}
-                {wrapInNotificationProvider(
+      <AuthProvider>
+        <ScholarshipsProvider>
+          <PostsProvider>
+            <SuccessStoriesProvider>
+              <FilterOptionsProvider>
+                <TooltipProvider>
+                  {/* مكون لتطبيق ألوان إعدادات الموقع */}
+                  <ThemeColors />
+                  {!isAdminPage && <Header />}
+                  {wrapInNotificationProvider(
                   <Switch>
                     {/* Public routes */}
                     <Route path="/" component={Home} />
@@ -230,6 +232,7 @@ function App() {
           </SuccessStoriesProvider>
         </PostsProvider>
       </ScholarshipsProvider>
+      </AuthProvider>
     </SiteSettingsProvider>
   );
 }
