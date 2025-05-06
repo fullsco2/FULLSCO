@@ -22,9 +22,22 @@ export default function LatestArticlesSection({
   useEffect(() => {
     async function loadArticles() {
       try {
-        // جلب أحدث 3 مقالات
-        const data = await getLatestArticles(3);
-        setArticles(data);
+        // طلب مباشر للتأكد من التعامل مع الخادم الحالي
+        const response = await fetch('/api/posts?limit=3');
+        if (!response.ok) {
+          throw new Error(`فشل الطلب: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // التعامل مع هيكل البيانات من API الحالي
+        if (data.success && data.data) {
+          setArticles(data.data);
+        } else if (Array.isArray(data)) {
+          setArticles(data);
+        } else {
+          setArticles([]);
+        }
       } catch (error) {
         console.error('Error loading articles:', error);
       } finally {

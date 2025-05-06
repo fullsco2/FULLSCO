@@ -47,8 +47,22 @@ export default function StatisticsSection({
   useEffect(() => {
     async function loadStatistics() {
       try {
-        const data = await getStatistics();
-        setStatistics(data);
+        // طلب مباشر للتأكد من التعامل مع الخادم الحالي
+        const response = await fetch('/api/statistics');
+        if (!response.ok) {
+          throw new Error(`فشل الطلب: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // التعامل مع هيكل البيانات من API الحالي
+        if (data.success && data.data) {
+          setStatistics(data.data);
+        } else if (Array.isArray(data)) {
+          setStatistics(data);
+        } else {
+          setStatistics([]);
+        }
       } catch (error) {
         console.error('Error loading statistics:', error);
       } finally {

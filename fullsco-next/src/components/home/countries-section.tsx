@@ -58,9 +58,24 @@ export default function CountriesSection({
   useEffect(() => {
     async function loadCountries() {
       try {
-        const data = await getCountries();
+        // طلب مباشر للتأكد من التعامل مع الخادم الحالي
+        const response = await fetch('/api/countries');
+        if (!response.ok) {
+          throw new Error(`فشل الطلب: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // التعامل مع هيكل البيانات من API الحالي
+        let countryData = [];
+        if (data.success && data.data) {
+          countryData = data.data;
+        } else if (Array.isArray(data)) {
+          countryData = data;
+        }
+        
         // ترتيب الدول بناءً على الاسم
-        const sortedCountries = data.sort((a: any, b: any) => a.name.localeCompare(b.name));
+        const sortedCountries = countryData.sort((a: any, b: any) => a.name.localeCompare(b.name));
         setCountries(sortedCountries);
       } catch (error) {
         console.error('Error loading countries:', error);

@@ -22,8 +22,22 @@ export default function SuccessStoriesSection({
   useEffect(() => {
     async function loadSuccessStories() {
       try {
-        const data = await getSuccessStories(3);
-        setStories(data);
+        // طلب مباشر للتأكد من التعامل مع الخادم الحالي
+        const response = await fetch('/api/success-stories?limit=3');
+        if (!response.ok) {
+          throw new Error(`فشل الطلب: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // التعامل مع هيكل البيانات من API الحالي
+        if (data.success && data.data) {
+          setStories(data.data);
+        } else if (Array.isArray(data)) {
+          setStories(data);
+        } else {
+          setStories([]);
+        }
       } catch (error) {
         console.error('Error loading success stories:', error);
       } finally {

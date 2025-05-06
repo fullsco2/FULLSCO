@@ -34,8 +34,21 @@ export default function CategoriesSection({
   useEffect(() => {
     async function loadCategories() {
       try {
-        const data = await getCategories();
-        setCategories(data);
+        // طلب مباشر للتأكد من التعامل مع الخادم الحالي
+        const response = await fetch('/api/categories');
+        if (!response.ok) {
+          throw new Error(`فشل الطلب: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        // التعامل مع هيكل البيانات من API الحالي
+        if (data.success && data.data) {
+          setCategories(data.data);
+        } else if (Array.isArray(data)) {
+          setCategories(data);
+        } else {
+          setCategories([]);
+        }
       } catch (error) {
         console.error('Error loading categories:', error);
       } finally {
