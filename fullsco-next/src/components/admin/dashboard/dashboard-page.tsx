@@ -1,170 +1,165 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bookmark, FileText, Users, Award, TrendingUp, Activity, ArrowUpRight } from 'lucide-react';
-import { useAuth } from '@/hooks/use-auth';
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  BarChart,
+  CalendarDays,
+  FileText,
+  GraduationCap,
+  Users,
+  Award,
+} from "lucide-react";
 
 interface StatCardProps {
   title: string;
   value: string | number;
-  description: string;
-  icon: React.ReactNode;
-  trend?: number;
-  trendLabel?: string;
+  description?: string;
+  icon: React.ElementType;
+  loading?: boolean;
 }
 
-function StatCard({ title, value, description, icon, trend, trendLabel }: StatCardProps) {
+function StatCard({
+  title,
+  value,
+  description,
+  icon: Icon,
+  loading = false,
+}: StatCardProps) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <div className="h-8 w-8 rounded-full bg-primary/10 p-1.5 text-primary">{icon}</div>
+        <Icon className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        <p className="text-xs text-muted-foreground">{description}</p>
-        {trend !== undefined && (
-          <div className="mt-3 flex items-center gap-1 text-xs">
-            <div
-              className={`flex items-center gap-0.5 ${
-                trend >= 0 ? 'text-emerald-500' : 'text-red-500'
-              }`}
-            >
-              {trend >= 0 ? <TrendingUp className="h-3 w-3" /> : <Activity className="h-3 w-3" />}
-              <span>{Math.abs(trend)}%</span>
-            </div>
-            <span className="text-muted-foreground">{trendLabel}</span>
-          </div>
+        {loading ? (
+          <div className="h-6 w-3/4 animate-pulse rounded bg-muted"></div>
+        ) : (
+          <div className="text-2xl font-bold">{value}</div>
+        )}
+        {description && (
+          <p className="text-xs text-muted-foreground mt-1">{description}</p>
         )}
       </CardContent>
     </Card>
   );
 }
 
-export function DashboardPage() {
-  const { user } = useAuth();
-  const [statistics, setStatistics] = useState({
-    totalScholarships: 0,
-    totalArticles: 0,
-    totalUsers: 0,
-    totalSuccessStories: 0,
+export default function DashboardPage() {
+  const [stats, setStats] = useState({
+    scholarships: 0,
+    articles: 0,
+    users: 0,
+    successStories: 0,
   });
-
-  // محاكاة جلب البيانات من API
+  const [loading, setLoading] = useState(true);
+  
   useEffect(() => {
-    // في التطبيق الحقيقي، سيتم جلب هذه البيانات من API
-    const fetchDashboardData = async () => {
+    const fetchStats = async () => {
       try {
-        // مثال على كيفية جلب البيانات في التطبيق الحقيقي
-        // const response = await fetch('/api/admin/dashboard-stats');
-        // const data = await response.json();
-        // setStatistics(data);
-
-        // للتجربة فقط، نستخدم بيانات عينة
-        // في التطبيق الحقيقي، سيتم استبدال هذا بطلب API حقيقي
-        setStatistics({
-          totalScholarships: 48,
-          totalArticles: 24,
-          totalUsers: 215,
-          totalSuccessStories: 12,
+        // جلب عدد المنح الدراسية
+        const scholarshipsRes = await fetch("/api/scholarships/count");
+        const scholarships = await scholarshipsRes.json();
+        
+        // جلب عدد المقالات
+        const articlesRes = await fetch("/api/posts/count");
+        const articles = await articlesRes.json();
+        
+        // جلب عدد المستخدمين
+        const usersRes = await fetch("/api/users/count");
+        const users = await usersRes.json();
+        
+        // جلب عدد قصص النجاح
+        const successStoriesRes = await fetch("/api/success-stories/count");
+        const successStories = await successStoriesRes.json();
+        
+        setStats({
+          scholarships: scholarships.count || 0,
+          articles: articles.count || 0,
+          users: users.count || 0,
+          successStories: successStories.count || 0,
         });
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        console.error("خطأ في جلب الإحصائيات:", error);
+        // تعيين قيم افتراضية في حالة الخطأ
+        setStats({
+          scholarships: 0,
+          articles: 0,
+          users: 0,
+          successStories: 0,
+        });
+      } finally {
+        setLoading(false);
       }
     };
-
-    fetchDashboardData();
+    
+    fetchStats();
   }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">مرحباً، {user?.name || user?.username}!</h2>
-          <p className="text-muted-foreground">إليك لوحة قيادة منصة فولسكو للمنح الدراسية.</p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">لوحة القيادة</h1>
+        <div className="flex items-center gap-2">
+          <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">
+            {new Date().toLocaleDateString("ar-SA", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </span>
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
-          <TabsTrigger value="analytics">إحصائيات</TabsTrigger>
-          <TabsTrigger value="reports">التقارير</TabsTrigger>
-        </TabsList>
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              title="إجمالي المنح الدراسية"
-              value={statistics.totalScholarships}
-              description="منح دراسية نشطة في المنصة"
-              icon={<Bookmark className="h-5 w-5" />}
-              trend={8.2}
-              trendLabel="منذ الشهر الماضي"
-            />
-            <StatCard
-              title="إجمالي المقالات"
-              value={statistics.totalArticles}
-              description="مقالات منشورة على المنصة"
-              icon={<FileText className="h-5 w-5" />}
-              trend={12.5}
-              trendLabel="منذ الشهر الماضي"
-            />
-            <StatCard
-              title="إجمالي المستخدمين"
-              value={statistics.totalUsers}
-              description="مستخدم مسجل في المنصة"
-              icon={<Users className="h-5 w-5" />}
-              trend={5.3}
-              trendLabel="منذ الشهر الماضي"
-            />
-            <StatCard
-              title="قصص النجاح"
-              value={statistics.totalSuccessStories}
-              description="قصة نجاح منشورة"
-              icon={<Award className="h-5 w-5" />}
-              trend={-2.5}
-              trendLabel="منذ الشهر الماضي"
-            />
-          </div>
-        </TabsContent>
-        <TabsContent value="analytics" className="h-[400px] w-full rounded-md border p-8">
-          <div className="flex h-full items-center justify-center">
-            <p className="text-center text-muted-foreground">سيتم إضافة معلومات التحليلات هنا</p>
-          </div>
-        </TabsContent>
-        <TabsContent value="reports" className="h-[400px] w-full rounded-md border p-8">
-          <div className="flex h-full items-center justify-center">
-            <p className="text-center text-muted-foreground">سيتم إضافة التقارير هنا</p>
-          </div>
-        </TabsContent>
-      </Tabs>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="المنح الدراسية"
+          value={stats.scholarships}
+          icon={GraduationCap}
+          loading={loading}
+        />
+        <StatCard
+          title="المقالات"
+          value={stats.articles}
+          icon={FileText}
+          loading={loading}
+        />
+        <StatCard
+          title="المستخدمون"
+          value={stats.users}
+          icon={Users}
+          loading={loading}
+        />
+        <StatCard
+          title="قصص النجاح"
+          value={stats.successStories}
+          icon={Award}
+          loading={loading}
+        />
+      </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="lg:col-span-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+        <Card>
           <CardHeader>
-            <CardTitle>آخر المنح الدراسية</CardTitle>
-            <CardDescription>منح دراسية تمت إضافتها مؤخراً</CardDescription>
+            <CardTitle>النشاط الأخير</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border">
-              <div className="flex h-[200px] items-center justify-center p-4">
-                <p className="text-sm text-muted-foreground">سيتم عرض آخر المنح الدراسية هنا</p>
-              </div>
+            <div className="text-center py-6 text-muted-foreground">
+              ستتوفر رسوم بيانية إحصائية للنشاط قريبًا.
             </div>
           </CardContent>
         </Card>
-        <Card className="lg:col-span-3">
+        <Card>
           <CardHeader>
-            <CardTitle>آخر المقالات</CardTitle>
-            <CardDescription>مقالات تمت إضافتها مؤخراً</CardDescription>
+            <CardTitle>المنح حسب الدولة</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border">
-              <div className="flex h-[200px] items-center justify-center p-4">
-                <p className="text-sm text-muted-foreground">سيتم عرض آخر المقالات هنا</p>
-              </div>
+            <div className="text-center py-6 text-muted-foreground">
+              <BarChart className="h-16 w-16 mx-auto text-muted-foreground/50" />
+              ستتوفر رسوم بيانية للمنح الدراسية حسب الدولة قريبًا.
             </div>
           </CardContent>
         </Card>

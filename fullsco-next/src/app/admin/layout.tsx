@@ -1,24 +1,36 @@
-'use client';
+import { Metadata } from "next";
+import AdminHeader from "@/components/admin/admin-header";
+import AdminSidebar from "@/components/admin/admin-sidebar";
+import { isAdmin } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-import { ProtectedRoute } from '@/lib/protected-route';
-import { AdminSidebar } from '@/components/admin/admin-sidebar';
-import { AdminHeader } from '@/components/admin/admin-header';
-import { Suspense } from 'react';
+export const metadata: Metadata = {
+  title: "لوحة الإدارة | منصة المنح الدراسية",
+  description: "إدارة محتوى منصة المنح الدراسية",
+};
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  // التحقق من أن المستخدم مسؤول
+  const adminUser = await isAdmin();
+  
+  // إذا لم يكن المستخدم مسؤولًا، يتم توجيهه إلى صفحة تسجيل الدخول
+  if (!adminUser) {
+    redirect("/auth");
+  }
+
   return (
-    <ProtectedRoute adminOnly>
-      <div className="relative min-h-screen bg-background lg:grid lg:grid-cols-[280px_1fr]">
+    <div className="bg-background min-h-screen flex flex-col">
+      <AdminHeader />
+      <div className="flex flex-1 overflow-hidden">
         <AdminSidebar />
-        <div className="flex min-h-screen flex-col">
-          <AdminHeader />
-          <main className="flex-1 p-4 lg:p-8">
-            <Suspense fallback={<div className="flex justify-center p-12"><span className="loading loading-spinner loading-lg"></span></div>}>
-              {children}
-            </Suspense>
-          </main>
-        </div>
+        <main className="flex-1 p-4 md:p-6 overflow-auto">
+          {children}
+        </main>
       </div>
-    </ProtectedRoute>
+    </div>
   );
 }

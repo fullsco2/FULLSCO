@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { User } from '@/types/user';
-import { useToast } from '@/hooks/use-toast';
+import { createContext, ReactNode, useContext } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useToast } from "./use-toast";
+import { useRouter } from "next/navigation";
 
 type AuthContextType = {
-  user: User | null;
+  user: any | null;
   isLoading: boolean;
   error: Error | null;
-  loginMutation: ReturnType<typeof useLoginMutation>;
-  logoutMutation: ReturnType<typeof useLogoutMutation>;
-  registerMutation: ReturnType<typeof useRegisterMutation>;
+  loginMutation: any;
+  logoutMutation: any;
+  registerMutation: any;
 };
 
 type LoginData = {
@@ -27,117 +27,9 @@ type RegisterData = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Custom hook for login mutation
-function useLoginMutation() {
-  const { toast } = useToast();
-  return useMutation({
-    mutationFn: async (credentials: LoginData) => {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'خطأ في تسجيل الدخول');
-      }
-
-      return res.json() as Promise<User>;
-    },
-    onSuccess: (data) => {
-      toast({
-        title: 'تم تسجيل الدخول بنجاح',
-        description: 'مرحباً بك مرة أخرى!',
-        variant: 'default',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'خطأ في تسجيل الدخول',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
-}
-
-// Custom hook for registration mutation
-function useRegisterMutation() {
-  const { toast } = useToast();
-  return useMutation({
-    mutationFn: async (userData: RegisterData) => {
-      const res = await fetch('/api/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'خطأ في إنشاء الحساب');
-      }
-
-      return res.json() as Promise<User>;
-    },
-    onSuccess: (data) => {
-      toast({
-        title: 'تم إنشاء الحساب بنجاح',
-        description: 'مرحباً بك في منصة فولسكو!',
-        variant: 'default',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'خطأ في إنشاء الحساب',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
-}
-
-// Custom hook for logout mutation
-function useLogoutMutation() {
-  const { toast } = useToast();
-  return useMutation({
-    mutationFn: async () => {
-      const res = await fetch('/api/logout', {
-        method: 'POST',
-      });
-
-      if (!res.ok) {
-        throw new Error('خطأ في تسجيل الخروج');
-      }
-    },
-    onSuccess: () => {
-      toast({
-        title: 'تم تسجيل الخروج بنجاح',
-        description: 'نراك قريباً!',
-        variant: 'default',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'خطأ في تسجيل الخروج',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  
-  // التأكد من أن الكود ينفذ فقط على جانب العميل
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const { toast } = useToast();
+  const router = useRouter();
 
   const {
     data: user,
@@ -145,40 +37,127 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ['user'],
+    queryKey: ["/api/user"],
     queryFn: async () => {
-      const res = await fetch('/api/user');
-      if (!res.ok) {
-        if (res.status === 401) {
-          return null;
+      try {
+        const res = await fetch("/api/user");
+        if (!res.ok) {
+          if (res.status === 401) {
+            return null;
+          }
+          throw new Error("Failed to fetch user");
         }
-        throw new Error(`خطأ في جلب بيانات المستخدم: ${res.status}`);
+        return res.json();
+      } catch (error) {
+        console.error("Error fetching user:", error);
+        return null;
       }
-      return res.json() as Promise<User>;
     },
-    enabled: mounted, // فقط قم بالاستعلام إذا كان مثبتًا (على جانب العميل)
-    retry: false, // لا تعيد المحاولة لأن 401 هو وضع صحيح لعدم وجود مستخدم مسجل دخوله
-    refetchOnWindowFocus: false, // لا تقم بإعادة الاستعلام عند التركيز على النافذة
   });
 
-  const loginMutation = useLoginMutation();
-  const registerMutation = useRegisterMutation();
-  const logoutMutation = useLogoutMutation();
+  const loginMutation = useMutation({
+    mutationFn: async (credentials: LoginData) => {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(credentials),
+      });
 
-  // تحديث بيانات المستخدم بعد العمليات
-  useEffect(() => {
-    // إعادة جلب بيانات المستخدم بعد العمليات الناجحة
-    if (loginMutation.isSuccess || registerMutation.isSuccess || logoutMutation.isSuccess) {
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to login");
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
       refetch();
-    }
-  }, [loginMutation.isSuccess, registerMutation.isSuccess, logoutMutation.isSuccess, refetch]);
+      toast({
+        title: "تم تسجيل الدخول بنجاح",
+        description: "مرحبًا بك مرة أخرى",
+      });
+      router.push("/");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "فشل تسجيل الدخول",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const registerMutation = useMutation({
+    mutationFn: async (credentials: RegisterData) => {
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(credentials),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to register");
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      refetch();
+      toast({
+        title: "تم إنشاء الحساب بنجاح",
+        description: "مرحبًا بك في منصة المنح الدراسية",
+      });
+      router.push("/");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "فشل إنشاء الحساب",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/logout", {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to logout");
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      refetch();
+      toast({
+        title: "تم تسجيل الخروج بنجاح",
+      });
+      router.push("/");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "فشل تسجيل الخروج",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   return (
     <AuthContext.Provider
       value={{
-        user: user || null,
+        user,
         isLoading,
-        error: error || null,
+        error,
         loginMutation,
         logoutMutation,
         registerMutation,
@@ -192,7 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth يجب أن يستخدم داخل AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

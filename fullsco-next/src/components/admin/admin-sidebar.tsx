@@ -1,188 +1,243 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   FileText,
-  Bookmark,
-  GraduationCap,
-  Globe,
+  BookOpen,
   Users,
   Settings,
-  Mail,
-  Menu,
-  X,
-  PenTool,
   Award,
   Image,
-  BookOpen,
-} from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/use-auth';
+  Menu,
+  X,
+  Globe,
+  GraduationCap,
+  Tags,
+  Mail,
+} from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
-interface SidebarLink {
+type NavItem = {
+  title: string;
   href: string;
-  label: string;
-  icon: React.ReactNode;
-  admin?: boolean; // إذا كان ترو سيكون متاحًا فقط للمسؤولين
-}
+  icon: React.ElementType;
+  submenu?: NavItem[];
+};
 
-const sidebarLinks: SidebarLink[] = [
+const navItems: NavItem[] = [
   {
-    href: '/admin/dashboard',
-    label: 'لوحة القيادة',
-    icon: <LayoutDashboard className="h-5 w-5" />,
+    title: "لوحة القيادة",
+    href: "/admin/dashboard",
+    icon: LayoutDashboard,
   },
   {
-    href: '/admin/scholarships',
-    label: 'المنح الدراسية',
-    icon: <Bookmark className="h-5 w-5" />,
+    title: "المنح الدراسية",
+    href: "/admin/scholarships",
+    icon: GraduationCap,
   },
   {
-    href: '/admin/articles',
-    label: 'المقالات',
-    icon: <FileText className="h-5 w-5" />,
+    title: "المقالات",
+    href: "/admin/articles",
+    icon: FileText,
   },
   {
-    href: '/admin/categories',
-    label: 'التصنيفات',
-    icon: <BookOpen className="h-5 w-5" />,
+    title: "قصص النجاح",
+    href: "/admin/success-stories",
+    icon: Award,
   },
   {
-    href: '/admin/levels',
-    label: 'المستويات الدراسية',
-    icon: <GraduationCap className="h-5 w-5" />,
+    title: "التصنيفات",
+    href: "/admin/categories",
+    icon: Tags,
   },
   {
-    href: '/admin/countries',
-    label: 'الدول',
-    icon: <Globe className="h-5 w-5" />,
+    title: "المستخدمون",
+    href: "/admin/users",
+    icon: Users,
   },
   {
-    href: '/admin/success-stories',
-    label: 'قصص النجاح',
-    icon: <Award className="h-5 w-5" />,
+    title: "مكتبة الوسائط",
+    href: "/admin/media",
+    icon: Image,
   },
   {
-    href: '/admin/users',
-    label: 'المستخدمين',
-    icon: <Users className="h-5 w-5" />,
-    admin: true,
+    title: "صفحات الموقع",
+    href: "/admin/pages",
+    icon: BookOpen,
   },
   {
-    href: '/admin/media',
-    label: 'مكتبة الوسائط',
-    icon: <Image className="h-5 w-5" />,
-  },
-  {
-    href: '/admin/pages',
-    label: 'الصفحات',
-    icon: <PenTool className="h-5 w-5" />,
-    admin: true,
-  },
-  {
-    href: '/admin/subscribers',
-    label: 'المشتركين',
-    icon: <Mail className="h-5 w-5" />,
-    admin: true,
-  },
-  {
-    href: '/admin/settings',
-    label: 'الإعدادات',
-    icon: <Settings className="h-5 w-5" />,
-    admin: true,
+    title: "الإعدادات",
+    href: "/admin/settings",
+    icon: Settings,
+    submenu: [
+      {
+        title: "إعدادات الموقع",
+        href: "/admin/settings/site",
+        icon: Globe,
+      },
+      {
+        title: "إعدادات الرسائل",
+        href: "/admin/settings/email",
+        icon: Mail,
+      },
+    ],
   },
 ];
 
-export function AdminSidebar() {
-  const pathname = usePathname();
-  const { user } = useAuth();
+const MobileNav = () => {
   const [open, setOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const pathname = usePathname();
 
-  // تحديد ما إذا كان الجهاز جوالًا أم لا
+  // إغلاق القائمة عند تغيير المسار
   useEffect(() => {
-    const checkIsMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
+    setOpen(false);
+  }, [pathname]);
 
-    checkIsMobile();
-    window.addEventListener('resize', checkIsMobile);
-
-    return () => {
-      window.removeEventListener('resize', checkIsMobile);
-    };
-  }, []);
-
-  // تصفية الروابط بناءً على دور المستخدم
-  const filteredLinks = sidebarLinks.filter(link => {
-    if (link.admin) {
-      return user?.role === 'admin';
-    }
-    return true;
-  });
-
-  const SidebarContent = () => (
-    <div className="flex h-full flex-col border-l border-border bg-card">
-      <div className="flex h-14 items-center border-b border-border px-4">
-        <Link 
-          href="/admin/dashboard" 
-          className="flex items-center gap-2 font-medium hover:opacity-80"
-          onClick={() => isMobile && setOpen(false)}
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild className="lg:hidden">
+        <button
+          className="inline-flex items-center justify-center rounded-md p-2 text-primary hover:bg-accent hover:text-primary-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary"
+          aria-label="فتح القائمة"
         >
-          <LayoutDashboard className="h-5 w-5 text-primary" />
-          <span className="text-lg font-semibold">لوحة التحكم</span>
-        </Link>
-      </div>
-      <ScrollArea className="flex-1 py-2">
-        <nav className="grid gap-1 px-2">
-          {filteredLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={() => isMobile && setOpen(false)}
-              className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                pathname === link.href
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          <Menu className="h-6 w-6" />
+        </button>
+      </SheetTrigger>
+      <SheetContent side="right" className="w-[270px] p-0">
+        <div className="flex h-14 items-center border-b px-4">
+          <button
+            type="button"
+            className="mr-4 rounded-md p-1 text-primary hover:bg-accent hover:text-primary-foreground"
+            onClick={() => setOpen(false)}
+            aria-label="إغلاق القائمة"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <Link
+            href="/admin/dashboard"
+            className="flex items-center font-semibold text-lg"
+          >
+            لوحة الإدارة
+          </Link>
+        </div>
+        <ScrollArea className="h-[calc(100vh-3.5rem)] py-2">
+          <AdminNav mobile />
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
+  );
+};
+
+const AdminNav = ({ mobile = false }: { mobile?: boolean }) => {
+  const pathname = usePathname();
+  const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
+
+  // عند تغيير المسار، نفتح القائمة التي تحتوي على المسار الحالي
+  useEffect(() => {
+    navItems.forEach((item) => {
+      if (item.submenu?.some((subitem) => pathname.startsWith(subitem.href))) {
+        setOpenSubmenu(item.href);
+      }
+    });
+  }, [pathname]);
+
+  const toggleSubmenu = (href: string) => {
+    setOpenSubmenu(openSubmenu === href ? null : href);
+  };
+
+  return (
+    <div
+      className={cn(
+        "pb-12",
+        mobile ? "px-4" : "hidden lg:block lg:w-64 lg:border-l"
+      )}
+    >
+      {!mobile && (
+        <div className="py-4 flex items-center justify-center">
+          <Link
+            href="/admin/dashboard"
+            className="inline-flex items-center gap-2 text-xl font-semibold"
+          >
+            لوحة الإدارة
+          </Link>
+        </div>
+      )}
+      <nav className="mt-4 lg:mt-8 space-y-1.5 px-3">
+        {navItems.map((item) => {
+          const isActive = pathname.startsWith(item.href);
+          const hasSubmenu = !!item.submenu?.length;
+          const isSubmenuOpen = openSubmenu === item.href;
+
+          return (
+            <div key={item.href} className="relative">
+              {hasSubmenu ? (
+                <button
+                  onClick={() => toggleSubmenu(item.href)}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <item.icon className="h-5 w-5 shrink-0" />
+                  <span className="truncate">{item.title}</span>
+                </button>
+              ) : (
+                <Link
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <item.icon className="h-5 w-5 shrink-0" />
+                  <span className="truncate">{item.title}</span>
+                </Link>
               )}
-            >
-              {link.icon}
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-      </ScrollArea>
+
+              {hasSubmenu && isSubmenuOpen && (
+                <div className="mt-1 mr-2 space-y-1 border-r pr-2">
+                  {item.submenu?.map((subitem) => {
+                    const isSubActive = pathname.startsWith(subitem.href);
+                    return (
+                      <Link
+                        key={subitem.href}
+                        href={subitem.href}
+                        className={cn(
+                          "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                          isSubActive
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        <subitem.icon className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{subitem.title}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </nav>
     </div>
   );
+};
 
-  // عرض الشريط الجانبي اعتمادًا على حجم الشاشة
-  if (isMobile) {
-    return (
-      <>
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="fixed bottom-4 left-4 z-40 h-10 w-10 rounded-full bg-primary text-white shadow-lg hover:bg-primary/90 lg:hidden"
-            >
-              {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-[280px] p-0">
-            <SidebarContent />
-          </SheetContent>
-        </Sheet>
-      </>
-    );
-  }
-
-  return <SidebarContent />;
+export default function AdminSidebar() {
+  return (
+    <>
+      <MobileNav />
+      <AdminNav />
+    </>
+  );
 }

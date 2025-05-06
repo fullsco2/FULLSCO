@@ -1,30 +1,41 @@
-import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
-import { createHash } from "crypto";
-
-// استيراد أنواع وجداول المستخدمين
 import { users } from "@/shared/schema";
+import { scrypt, timingSafeEqual } from "crypto";
+import { promisify } from "util";
+
+const scryptAsync = promisify(scrypt);
 
 /**
- * التحقق مما إذا كان المستخدم مسجل الدخول من خلال فحص ملف تعريف الارتباط
+ * مقارنة كلمات المرور بأمان
  */
-export async function isAuthenticated(): Promise<boolean> {
-  const cookieStore = cookies();
-  const userId = cookieStore.get("user_id")?.value;
+export async function comparePasswords(supplied: string, stored: string) {
+  const [hashed, salt] = stored.split(".");
+  const hashedBuf = Buffer.from(hashed, "hex");
+  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+  return timingSafeEqual(hashedBuf, suppliedBuf);
+}
 
-  if (!userId) return false;
-
-  // التحقق من وجود المستخدم في قاعدة البيانات
+/**
+ * التحقق من المصادقة
+ */
+export async function isAuthenticated() {
   try {
+    const cookieStore = cookies();
+    const userId = cookieStore.get("user_id")?.value;
+
+    if (!userId) {
+      return false;
+    }
+
     const user = await db.query.users.findFirst({
       where: eq(users.id, parseInt(userId)),
     });
 
     return !!user;
   } catch (error) {
-    console.error("خطأ أثناء التحقق من المصادقة:", error);
+    console.error("خطأ في التحقق من المصادقة:", error);
     return false;
   }
 }
@@ -33,60 +44,64 @@ export async function isAuthenticated(): Promise<boolean> {
  * الحصول على بيانات المستخدم الحالي
  */
 export async function getCurrentUser() {
-  const cookieStore = cookies();
-  const userId = cookieStore.get("user_id")?.value;
-
-  if (!userId) return null;
-
   try {
+    const cookieStore = cookies();
+    const userId = cookieStore.get("user_id")?.value;
+
+    if (!userId) {
+      return null;
+    }
+
     const user = await db.query.users.findFirst({
       where: eq(users.id, parseInt(userId)),
     });
 
-    if (!user) return null;
+    if (!user) {
+      return null;
+    }
 
-    // إرجاع بيانات المستخدم بدون كلمة المرور
-    const { password: _, ...userWithoutPassword } = user;
+    // إزالة كلمة المرور من بيانات المستخدم قبل إرجاعها
+    const { password, ...userWithoutPassword } = user;
     return userWithoutPassword;
   } catch (error) {
-    console.error("خطأ أثناء جلب بيانات المستخدم الحالي:", error);
+    console.error("خطأ في الحصول على بيانات المستخدم الحالي:", error);
     return null;
   }
 }
 
 /**
- * إنشاء توكن CSRF لحماية النماذج
+ * التحقق من صلاحيات المستخدم
  */
-export function generateCsrfToken(): string {
-  const timestamp = Date.now().toString();
-  const randomString = Math.random().toString(36).substring(2, 15);
-  const data = `${timestamp}:${randomString}`;
-  
-  return createHash("sha256").update(data).digest("hex");
-}
+export async function hasPermission(permission: string) {
+  try {
+    const user = await getCurrentUser();
 
-/**
- * التحقق من صحة توكن CSRF
- */
-export function validateCsrfToken(token: string): boolean {
-  // في التطبيق الحقيقي، يجب مقارنة التوكن مع القيمة المخزنة في الجلسة
-  // هذا مجرد تنفيذ بسيط للعرض
-  return token && token.length === 64; // التحقق من طول التوكن المتوقع من sha256
-}
+    if (!user) {
+      return false;
+    }
 
-/**
- * تأمين الصفحات التي تتطلب مصادقة
- */
-export async function requireAuth(request: NextRequest) {
-  // التحقق مما إذا كان المستخدم مسجل الدخول
-  const authenticated = await isAuthenticated();
-  
-  if (!authenticated) {
-    // إعادة توجيه المستخدم إلى صفحة تسجيل الدخول
-    const url = new URL("/auth", request.url);
-    url.searchParams.set("callbackUrl", request.nextUrl.pathname);
-    return NextResponse.redirect(url);
+    // للتبسيط، سنفترض أن المستخدم بدور "admin" لديه جميع الصلاحيات
+    if (user.role === "admin") {
+      return true;
+    }
+
+    // يمكن تنفيذ منطق أكثر تعقيدًا للتحقق من الصلاحيات حسب احتياجات التطبيق
+    return false;
+  } catch (error) {
+    console.error("خطأ في التحقق من الصلاحيات:", error);
+    return false;
   }
-  
-  return null; // السماح بالوصول للصفحة
+}
+
+/**
+ * التحقق من أن المستخدم هو مسؤول النظام
+ */
+export async function isAdmin() {
+  try {
+    const user = await getCurrentUser();
+    return user?.role === "admin";
+  } catch (error) {
+    console.error("خطأ في التحقق من صلاحيات المسؤول:", error);
+    return false;
+  }
 }
