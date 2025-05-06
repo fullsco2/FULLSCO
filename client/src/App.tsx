@@ -10,8 +10,6 @@ import ArticleDetail from "@/pages/article-detail";
 import StaticPage from "@/pages/static-page";
 import PageById from "@/pages/page-by-id";
 import { AuthProvider } from "@/hooks/use-auth";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
 
 // استيراد صفحات قصص النجاح بشكل كسول
 const SuccessStories = lazy(() => import("@/pages/success-stories"));
@@ -110,20 +108,19 @@ function App() {
   }, [location]);
 
   return (
-    <ScholarshipsProvider>
-      <PostsProvider>
-        <SuccessStoriesProvider>
-          <FilterOptionsProvider>
-            <TooltipProvider>
-              {/* مكون لتطبيق ألوان إعدادات الموقع */}
-              <ThemeColors />
-              {!isAdminPage && <Header />}
-              
-              {/* المسارات المختلفة للتطبيق */}
-              {isAdminPage ? (
-                // مسارات لوحة التحكم مع مزود المصادقة الجديد
-                <AuthProvider>
-                  {location !== '/admin/login' ? (
+    <AuthProvider>
+      <SiteSettingsProvider>
+        <ScholarshipsProvider>
+          <PostsProvider>
+            <SuccessStoriesProvider>
+              <FilterOptionsProvider>
+                <TooltipProvider>
+                  {/* مكون لتطبيق ألوان إعدادات الموقع */}
+                  <ThemeColors />
+                  {!isAdminPage && <Header />}
+                  
+                  {/* إضافة مزود الإشعارات لصفحات لوحة التحكم فقط */}
+                  {isAdminPage && location !== '/admin/login' ? (
                     <NotificationProvider>
                       <Switch>
                         {/* Admin routes */}
@@ -173,51 +170,55 @@ function App() {
                   ) : (
                     <Switch>
                       {/* صفحة تسجيل الدخول */}
-                      <Route path="/admin/login" component={AdminLogin} />
+                      {location === '/admin/login' && (
+                        <Route path="/admin/login" component={AdminLogin} />
+                      )}
+                      
+                      {/* Public routes */}
+                      {!isAdminPage && (
+                        <>
+                          <Route path="/" component={Home} />
+                          <Route path="/scholarships" component={Scholarships} />
+                          <Route path="/scholarships/:slug" component={ScholarshipDetail} />
+                          <Route path="/articles" component={Articles} />
+                          <Route path="/articles/:slug" component={ArticleDetail} />
+
+                          {/* مسارات قصص النجاح */}
+                          <Route path="/success-stories">
+                            {() => (
+                              <Suspense fallback={<div className="flex justify-center items-center min-h-[60vh]">جاري التحميل...</div>}>
+                                <SuccessStories />
+                              </Suspense>
+                            )}
+                          </Route>
+                          <Route path="/success-stories/:slug">
+                            {() => (
+                              <Suspense fallback={<div className="flex justify-center items-center min-h-[60vh]">جاري التحميل...</div>}>
+                                <SuccessStoryDetail />
+                              </Suspense>
+                            )}
+                          </Route>
+
+                          {/* مسارات الصفحات العامة */}
+                          <Route path="/page/:slug" component={StaticPage} />
+                          <Route path="/pages/:id" component={PageById} />
+                          <Route path="/:slug" component={StaticPage} />
+                          
+                          {/* Fallback to 404 */}
+                          <Route component={NotFound} />
+                        </>
+                      )}
                     </Switch>
                   )}
-                </AuthProvider>
-              ) : (
-                <Switch>
-                  {/* Public routes */}
-                  <Route path="/" component={Home} />
-                  <Route path="/scholarships" component={Scholarships} />
-                  <Route path="/scholarships/:slug" component={ScholarshipDetail} />
-                  <Route path="/articles" component={Articles} />
-                  <Route path="/articles/:slug" component={ArticleDetail} />
-
-                  {/* مسارات قصص النجاح */}
-                  <Route path="/success-stories">
-                    {() => (
-                      <Suspense fallback={<div className="flex justify-center items-center min-h-[60vh]">جاري التحميل...</div>}>
-                        <SuccessStories />
-                      </Suspense>
-                    )}
-                  </Route>
-                  <Route path="/success-stories/:slug">
-                    {() => (
-                      <Suspense fallback={<div className="flex justify-center items-center min-h-[60vh]">جاري التحميل...</div>}>
-                        <SuccessStoryDetail />
-                      </Suspense>
-                    )}
-                  </Route>
-
-                  {/* مسارات الصفحات العامة */}
-                  <Route path="/page/:slug" component={StaticPage} />
-                  <Route path="/pages/:id" component={PageById} />
-                  <Route path="/:slug" component={StaticPage} />
                   
-                  {/* Fallback to 404 */}
-                  <Route component={NotFound} />
-                </Switch>
-              )}
-              
-              {!isAdminPage && <Footer />}
-            </TooltipProvider>
-          </FilterOptionsProvider>
-        </SuccessStoriesProvider>
-      </PostsProvider>
-    </ScholarshipsProvider>
+                  {!isAdminPage && <Footer />}
+                </TooltipProvider>
+              </FilterOptionsProvider>
+            </SuccessStoriesProvider>
+          </PostsProvider>
+        </ScholarshipsProvider>
+      </SiteSettingsProvider>
+    </AuthProvider>
   );
 }
 

@@ -1,12 +1,13 @@
 import { ReactNode, useEffect, useState } from 'react';
+import { useAuth } from '@/hooks/use-auth';
 import { useLocation } from 'wouter';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import Sidebar from '@/components/admin/sidebar';
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { ThemeProvider } from '@/lib/theme-provider';
 import { NotificationProvider } from '@/components/notifications/notification-provider';
-import { useAuth } from '@/hooks/use-auth';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -24,16 +25,14 @@ export default function AdminLayout({
   breadcrumbs
 }: AdminLayoutProps) {
   const [location, setLocation] = useLocation();
+  const { user, isLoading } = useAuth();
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
-  // استخدام useAuth للحصول على بيانات المستخدم
-  const { user, isLoading, logout } = useAuth();
   
   // إعادة التوجيه إلى صفحة تسجيل الدخول إذا لم يكن المستخدم مسجل الدخول
   useEffect(() => {
     if (!isLoading && !user) {
-      setLocation('/admin/login');
+      setLocation('/login');
     }
   }, [user, isLoading, setLocation]);
 
@@ -72,13 +71,6 @@ export default function AdminLayout({
   if (!user) {
     return null; // سيتم إعادة التوجيه بواسطة useEffect
   }
-  
-  // نقوم بتعريف دالة تسجيل الخروج التي سنمررها للشريط الجانبي
-  const handleLogout = () => {
-    logout();
-    // نعيد توجيه المستخدم بعد تسجيل الخروج
-    setLocation('/admin/login');
-  };
 
   return (
     <TooltipProvider>
@@ -88,8 +80,6 @@ export default function AdminLayout({
             isMobileOpen={sidebarOpen} 
             onClose={() => setSidebarOpen(false)}
             activeItem={activeItem}
-            user={user}
-            onLogout={handleLogout}
           />
           
           <div className={`flex-1 transition-all duration-300 ${isMobile ? "mr-0" : "mr-64"}`}>
