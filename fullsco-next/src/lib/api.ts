@@ -16,7 +16,9 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
         'Content-Type': 'application/json',
         ...options.headers,
       },
-      next: { revalidate: 60 }, // إعادة التحقق كل 60 ثانية
+      // تعطيل revalidate للتعامل مع الخادم الحالي
+      // سيتم تفعيله لاحقاً عند الانتقال الكامل لـ Next.js
+      // next: { revalidate: 60 },
     });
 
     if (!response.ok) {

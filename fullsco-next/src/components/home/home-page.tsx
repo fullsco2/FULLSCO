@@ -60,11 +60,18 @@ export default function HomePage() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
+        // استخدام API مباشرة بدلاً من الطلب المباشر
         const response = await fetch('/api/site-settings');
         if (!response.ok) throw new Error('فشل في جلب إعدادات الموقع');
         
         const data = await response.json();
-        setSettings(data.data || {});
+        // التحقق من هيكل البيانات المستلمة من API
+        if (data.success && data.data) {
+          setSettings(data.data);
+        } else {
+          // إذا لم يكن في هيكل success/data
+          setSettings(data);
+        }
       } catch (error) {
         console.error('Error fetching site settings:', error);
       } finally {

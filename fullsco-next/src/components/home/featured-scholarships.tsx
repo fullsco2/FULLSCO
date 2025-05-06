@@ -22,9 +22,22 @@ export default function FeaturedScholarships({
   useEffect(() => {
     async function loadFeaturedScholarships() {
       try {
-        // استخدام دالة API التي أنشأناها
-        const data = await getFeaturedScholarships(6);
-        setScholarships(data);
+        // طلب مباشر للتأكد من التعامل مع الخادم الحالي
+        const response = await fetch('/api/scholarships/featured?limit=6');
+        if (!response.ok) {
+          throw new Error(`فشل الطلب: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        // التعامل مع هيكل البيانات من API الحالي
+        // قد يكون مصفوفة مباشرة أو رداً success/data
+        if (data.success && data.data) {
+          setScholarships(data.data);
+        } else if (Array.isArray(data)) {
+          setScholarships(data);
+        } else {
+          setScholarships([]);
+        }
       } catch (error) {
         console.error('Error loading featured scholarships:', error);
       } finally {
