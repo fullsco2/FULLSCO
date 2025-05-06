@@ -1,11 +1,10 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useAuth } from '@/hooks/use-auth';
-import { Button } from '@/components/ui/button';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 import {
   Form,
   FormControl,
@@ -13,37 +12,71 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Loader2, EyeIcon, EyeOffIcon } from 'lucide-react';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
-// مخطط التحقق من بيانات نموذج تسجيل الدخول
-const loginFormSchema = z.object({
+// مخطط التحقق من بيانات تسجيل الدخول
+const loginSchema = z.object({
   username: z.string().min(3, {
-    message: 'اسم المستخدم يجب أن يكون على الأقل 3 أحرف',
+    message: "اسم المستخدم يجب أن يحتوي على الأقل 3 أحرف",
   }),
   password: z.string().min(6, {
-    message: 'كلمة المرور يجب أن تكون على الأقل 6 أحرف',
+    message: "كلمة المرور يجب أن تحتوي على الأقل 6 أحرف",
   }),
 });
 
-type LoginFormValues = z.infer<typeof loginFormSchema>;
+type LoginFormValues = z.infer<typeof loginSchema>;
 
-export function LoginForm() {
-  const { loginMutation } = useAuth();
-  const [showPassword, setShowPassword] = useState(false);
-  
+export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+
+  // إعداد نموذج react-hook-form
   const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginFormSchema),
+    resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: '',
-      password: '',
+      username: "",
+      password: "",
     },
   });
 
-  const onSubmit = async (values: LoginFormValues) => {
-    await loginMutation.mutateAsync(values);
-  };
+  async function onSubmit(data: LoginFormValues) {
+    setIsLoading(true);
+    
+    try {
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "حدث خطأ أثناء تسجيل الدخول");
+      }
+
+      toast({
+        title: "تم تسجيل الدخول بنجاح",
+        description: "مرحبًا بك مرة أخرى في منصة المنح الدراسية",
+      });
+
+      // إعادة توجيه المستخدم إلى الصفحة المطلوبة أو الصفحة الرئيسية
+      router.push(callbackUrl || "/");
+      router.refresh(); // تحديث حالة المستخدم في واجهة المستخدم
+    } catch (error) {
+      console.error("Login error:", error);
+      toast({
+        title: "فشل تسجيل الدخول",
+        description: error instanceof Error ? error.message : "حدث خطأ غير معروف",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
     <Form {...form}>
@@ -56,9 +89,9 @@ export function LoginForm() {
               <FormLabel>اسم المستخدم</FormLabel>
               <FormControl>
                 <Input 
-                  placeholder="اكتب اسم المستخدم" 
+                  placeholder="أدخل اسم المستخدم" 
                   {...field} 
-                  disabled={loginMutation.isPending}
+                  disabled={isLoading}
                 />
               </FormControl>
               <FormMessage />
@@ -72,56 +105,20 @@ export function LoginForm() {
             <FormItem>
               <FormLabel>كلمة المرور</FormLabel>
               <FormControl>
-                <div className="relative">
-                  <Input 
-                    type={showPassword ? "text" : "password"} 
-                    placeholder="اكتب كلمة المرور" 
-                    {...field} 
-                    disabled={loginMutation.isPending}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute left-0 top-0 h-full px-3 py-1 text-muted-foreground"
-                    onClick={() => setShowPassword(!showPassword)}
-                    disabled={loginMutation.isPending}
-                  >
-                    {showPassword ? (
-                      <EyeOffIcon className="h-4 w-4" />
-                    ) : (
-                      <EyeIcon className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
+                <Input 
+                  type="password" 
+                  placeholder="أدخل كلمة المرور" 
+                  {...field} 
+                  disabled={isLoading}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <div className="pt-2">
-          <Button 
-            type="submit" 
-            className="w-full" 
-            disabled={loginMutation.isPending}
-          >
-            {loginMutation.isPending ? (
-              <>
-                <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                جاري تسجيل الدخول...
-              </>
-            ) : (
-              'تسجيل الدخول'
-            )}
-          </Button>
-        </div>
-        {loginMutation.isError && (
-          <div className="mt-4 rounded-md bg-destructive/10 p-3 text-center text-sm text-destructive">
-            {loginMutation.error instanceof Error
-              ? loginMutation.error.message
-              : 'حدث خطأ أثناء تسجيل الدخول'}
-          </div>
-        )}
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
+        </Button>
       </form>
     </Form>
   );

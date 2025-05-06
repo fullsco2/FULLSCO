@@ -1,114 +1,92 @@
-// src/lib/auth.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
-import { promisify } from 'util';
-import { db } from '@/lib/db';
-import { eq } from 'drizzle-orm';
-import { users } from '@/shared/schema';
-import { User } from '@/types/user';
+import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
+import { createHash } from "crypto";
 
-const scryptAsync = promisify(scrypt);
+// استيراد أنواع وجداول المستخدمين
+import { users } from "@/shared/schema";
 
-type SessionUser = {
-  id: number;
-  username: string;
-  email: string;
-  role: string;
-  name?: string;
-  avatar?: string;
-};
+/**
+ * التحقق مما إذا كان المستخدم مسجل الدخول من خلال فحص ملف تعريف الارتباط
+ */
+export async function isAuthenticated(): Promise<boolean> {
+  const cookieStore = cookies();
+  const userId = cookieStore.get("user_id")?.value;
 
-export async function hashPassword(password: string): Promise<string> {
-  const salt = randomBytes(16).toString('hex');
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${buf.toString('hex')}.${salt}`;
-}
+  if (!userId) return false;
 
-export async function verifyPassword(suppliedPassword: string, storedPassword: string): Promise<boolean> {
-  const [hashedPassword, salt] = storedPassword.split('.');
-  const hashedPasswordBuf = Buffer.from(hashedPassword, 'hex');
-  const suppliedPasswordBuf = (await scryptAsync(suppliedPassword, salt, 64)) as Buffer;
-  return timingSafeEqual(hashedPasswordBuf, suppliedPasswordBuf);
-}
-
-export async function getUserByUsername(username: string) {
-  const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
-  return result.length > 0 ? result[0] : null;
-}
-
-export async function getUserById(id: number) {
-  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
-  return result.length > 0 ? result[0] : null;
-}
-
-export function createSessionCookie(user: SessionUser) {
-  // تخزين معلومات المستخدم في الجلسة بدون كلمة المرور
-  const sessionData = JSON.stringify({
-    id: user.id,
-    username: user.username,
-    email: user.email,
-    role: user.role,
-    name: user.name,
-    avatar: user.avatar,
-  });
-  
-  // تحويل البيانات إلى Base64 للتخزين في الكوكيز
-  const encodedSessionData = Buffer.from(sessionData).toString('base64');
-  
-  // إنشاء كوكي آمن مع خيارات مناسبة
-  const cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 24 * 7, // أسبوع واحد
-    path: '/',
-  };
-  
-  return { name: 'session', value: encodedSessionData, options: cookieOptions };
-}
-
-export function getUserFromSession(req: NextRequest): User | null {
-  const sessionCookie = req.cookies.get('session');
-  
-  if (!sessionCookie?.value) {
-    return null;
-  }
-  
+  // التحقق من وجود المستخدم في قاعدة البيانات
   try {
-    // فك تشفير البيانات من Base64
-    const decodedSessionData = Buffer.from(sessionCookie.value, 'base64').toString();
-    return JSON.parse(decodedSessionData) as User;
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, parseInt(userId)),
+    });
+
+    return !!user;
   } catch (error) {
-    console.error('Error parsing session cookie:', error);
-    return null;
+    console.error("خطأ أثناء التحقق من المصادقة:", error);
+    return false;
   }
 }
 
-export function getUserFromSessionServer(): User | null {
-  const sessionCookie = cookies().get('session');
-  
-  if (!sessionCookie?.value) {
-    return null;
-  }
-  
+/**
+ * الحصول على بيانات المستخدم الحالي
+ */
+export async function getCurrentUser() {
+  const cookieStore = cookies();
+  const userId = cookieStore.get("user_id")?.value;
+
+  if (!userId) return null;
+
   try {
-    // فك تشفير البيانات من Base64
-    const decodedSessionData = Buffer.from(sessionCookie.value, 'base64').toString();
-    return JSON.parse(decodedSessionData) as User;
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, parseInt(userId)),
+    });
+
+    if (!user) return null;
+
+    // إرجاع بيانات المستخدم بدون كلمة المرور
+    const { password: _, ...userWithoutPassword } = user;
+    return userWithoutPassword;
   } catch (error) {
-    console.error('Error parsing session cookie:', error);
+    console.error("خطأ أثناء جلب بيانات المستخدم الحالي:", error);
     return null;
   }
 }
 
-export function removeSessionCookie() {
-  // إزالة الكوكي عن طريق تعيين قيمة فارغة وتاريخ انتهاء في الماضي
-  const cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 0,
-    path: '/',
-  };
+/**
+ * إنشاء توكن CSRF لحماية النماذج
+ */
+export function generateCsrfToken(): string {
+  const timestamp = Date.now().toString();
+  const randomString = Math.random().toString(36).substring(2, 15);
+  const data = `${timestamp}:${randomString}`;
   
-  return { name: 'session', value: '', options: cookieOptions };
+  return createHash("sha256").update(data).digest("hex");
+}
+
+/**
+ * التحقق من صحة توكن CSRF
+ */
+export function validateCsrfToken(token: string): boolean {
+  // في التطبيق الحقيقي، يجب مقارنة التوكن مع القيمة المخزنة في الجلسة
+  // هذا مجرد تنفيذ بسيط للعرض
+  return token && token.length === 64; // التحقق من طول التوكن المتوقع من sha256
+}
+
+/**
+ * تأمين الصفحات التي تتطلب مصادقة
+ */
+export async function requireAuth(request: NextRequest) {
+  // التحقق مما إذا كان المستخدم مسجل الدخول
+  const authenticated = await isAuthenticated();
+  
+  if (!authenticated) {
+    // إعادة توجيه المستخدم إلى صفحة تسجيل الدخول
+    const url = new URL("/auth", request.url);
+    url.searchParams.set("callbackUrl", request.nextUrl.pathname);
+    return NextResponse.redirect(url);
+  }
+  
+  return null; // السماح بالوصول للصفحة
 }

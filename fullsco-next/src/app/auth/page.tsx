@@ -1,16 +1,26 @@
-import { Metadata } from 'next';
-import { AuthPage } from '@/components/auth/auth-page';
+import { Metadata } from "next";
+import Image from "next/image";
+import { redirect } from "next/navigation";
+import AuthPage from "@/components/auth/auth-page";
+import { getCurrentUser } from "@/lib/auth";
 
 export const metadata: Metadata = {
-  title: '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 | \u0645\u0646\u0635\u0629 \u0627\u0644\u0645\u0646\u062d \u0627\u0644\u062f\u0631\u0627\u0633\u064a\u0629',
-  description: '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0623\u0648 \u0625\u0646\u0634\u0627\u0621 \u062d\u0633\u0627\u0628 \u062c\u062f\u064a\u062f \u0644\u0644\u0648\u0635\u0648\u0644 \u0625\u0644\u0649 \u0645\u0646\u0635\u0629 \u0627\u0644\u0645\u0646\u062d \u0627\u0644\u062f\u0631\u0627\u0633\u064a\u0629',
-  openGraph: {
-    title: '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 | \u0645\u0646\u0635\u0629 \u0627\u0644\u0645\u0646\u062d \u0627\u0644\u062f\u0631\u0627\u0633\u064a\u0629',
-    description: '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0623\u0648 \u0625\u0646\u0634\u0627\u0621 \u062d\u0633\u0627\u0628 \u062c\u062f\u064a\u062f \u0644\u0644\u0648\u0635\u0648\u0644 \u0625\u0644\u0649 \u0645\u0646\u0635\u0629 \u0627\u0644\u0645\u0646\u062d \u0627\u0644\u062f\u0631\u0627\u0633\u064a\u0629',
-    type: 'website',
-  },
+  title: "المصادقة | بوابة المنح الدراسية",
+  description: "تسجيل الدخول أو إنشاء حساب جديد للوصول إلى منصة المنح الدراسية",
 };
 
-export default function AuthPageRoute() {
-  return <AuthPage />;
+export default async function AuthenticationPage({
+  searchParams,
+}: {
+  searchParams: { callbackUrl?: string };
+}) {
+  // التحقق مما إذا كان المستخدم مسجل الدخول
+  const user = await getCurrentUser();
+
+  // إذا كان المستخدم مسجل الدخول، قم بتوجيهه إلى الصفحة الرئيسية أو صفحة العودة
+  if (user) {
+    redirect(searchParams.callbackUrl || "/");
+  }
+
+  return <AuthPage callbackUrl={searchParams.callbackUrl} />;
 }
