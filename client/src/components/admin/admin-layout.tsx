@@ -6,7 +6,7 @@ import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { NotificationProvider } from '@/components/notifications/notification-provider';
-// import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/hooks/use-auth';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -27,18 +27,15 @@ export default function AdminLayout({
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  // استخدام useAuth للحصول على بيانات المستخدم - مؤقتًا تم تعطيله لإصلاح مشكلة السياق
-  // const { user, isLoading, logout } = useAuth();
-  // للإصلاح المؤقت
-  const isLoading = false;
-  const user = { name: 'Admin', email: 'admin@example.com', role: 'admin' }; // بيانات مستخدم مؤقتة
+  // استخدام useAuth للحصول على بيانات المستخدم
+  const { user, isLoading, logout } = useAuth();
   
-  // إعادة التوجيه إلى صفحة تسجيل الدخول إذا لم يكن المستخدم مسجل الدخول - تم تعطيله مؤقتًا
-  // useEffect(() => {
-  //   if (!isLoading && !user) {
-  //     setLocation('/admin/login');
-  //   }
-  // }, [user, isLoading, setLocation]);
+  // إعادة التوجيه إلى صفحة تسجيل الدخول إذا لم يكن المستخدم مسجل الدخول
+  useEffect(() => {
+    if (!isLoading && !user) {
+      setLocation('/admin/login');
+    }
+  }, [user, isLoading, setLocation]);
 
   // إغلاق السايدبار عند النقر خارجه على الجوال
   useEffect(() => {
@@ -78,8 +75,7 @@ export default function AdminLayout({
   
   // نقوم بتعريف دالة تسجيل الخروج التي سنمررها للشريط الجانبي
   const handleLogout = () => {
-    // للإصلاح المؤقت - تم تعطيل تسجيل الخروج الفعلي
-    // logout();
+    logout();
     // نعيد توجيه المستخدم بعد تسجيل الخروج
     setLocation('/admin/login');
   };
