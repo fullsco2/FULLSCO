@@ -11,10 +11,12 @@ import { AuthProvider } from "./hooks/use-auth";
 createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>
     <SiteSettingsProvider>
-      <ThemeProvider defaultTheme="light" storageKey="fullsco-theme">
-        <App />
-        <Toaster />
-      </ThemeProvider>
+      <AuthProvider>
+        <ThemeProvider defaultTheme="light" storageKey="fullsco-theme">
+          <App />
+          <Toaster />
+        </ThemeProvider>
+      </AuthProvider>
     </SiteSettingsProvider>
   </QueryClientProvider>
 );

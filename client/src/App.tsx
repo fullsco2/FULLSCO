@@ -9,6 +9,8 @@ import Articles from "@/pages/articles";
 import ArticleDetail from "@/pages/article-detail";
 import StaticPage from "@/pages/static-page";
 import PageById from "@/pages/page-by-id";
+import AuthPage from "@/pages/auth-page";
+import { ProtectedRoute } from "@/lib/protected-route";
 
 // استيراد صفحات قصص النجاح بشكل كسول
 const SuccessStories = lazy(() => import("@/pages/success-stories"));
@@ -154,6 +156,9 @@ function App() {
                     {/* مسارات الصفحات العامة باستخدام السلاق والمعرف */}
                     <Route path="/page/:slug" component={StaticPage} />
                     <Route path="/pages/:id" component={PageById} />
+                    
+                    {/* Auth page route */}
+                    <Route path="/auth" component={AuthPage} />
                     
                     {/* مسار عام للصفحات باستخدام السلاق مباشرة - مثل /about-us */}
                     <Route path="/:slug" component={StaticPage} />
