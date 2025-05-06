@@ -1,13 +1,15 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar } from '@/components/ui/calendar';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar } from "@/components/ui/calendar";
+import { format, parseISO } from "date-fns";
+import { ar } from "date-fns/locale";
 import {
   Form,
   FormControl,
@@ -16,236 +18,358 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+} from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowRight, Calendar as CalendarIcon, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+} from "@/components/ui/popover";
+import { Editor } from "@/components/editor";
 import {
-  ArrowLeft,
-  Calendar as CalendarIcon,
-  Save,
-  Loader2,
-  Link as LinkIcon,
-} from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { format } from 'date-fns';
-import { ar } from 'date-fns/locale';
-import { useToast } from '@/hooks/use-toast';
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
-// مخطط Zod للتحقق من صحة بيانات نموذج المنحة
-const scholarshipFormSchema = z.object({
-  title: z.string().min(5, { message: 'العنوان يجب أن يكون 5 أحرف على الأقل' }),
-  university: z.string().min(2, { message: 'اسم الجامعة مطلوب' }),
-  description: z.string().min(20, { message: 'الوصف يجب أن يكون 20 حرفاً على الأقل' }),
-  countryId: z.string({ required_error: 'الرجاء اختيار البلد' }),
-  levelId: z.string({ required_error: 'الرجاء اختيار المستوى الدراسي' }),
-  categories: z.array(z.string()).min(1, { message: 'الرجاء اختيار تصنيف واحد على الأقل' }),
-  deadline: z.date({ required_error: 'الرجاء اختيار تاريخ الموعد النهائي' }),
-  fundingType: z.enum(['full', 'partial', 'mixed'], { required_error: 'الرجاء اختيار نوع التمويل' }),
+// تعريف مخطط التحقق للنموذج
+const formSchema = z.object({
+  title: z.string().min(5, {
+    message: "عنوان المنحة يجب أن يكون على الأقل 5 أحرف",
+  }),
+  slug: z.string().min(3, {
+    message: "الرابط يجب أن يكون على الأقل 3 أحرف",
+  }),
+  description: z.string().min(10, {
+    message: "الوصف المختصر يجب أن يكون على الأقل 10 أحرف",
+  }),
+  content: z.string().min(30, {
+    message: "محتوى المنحة يجب أن يكون على الأقل 30 حرفًا",
+  }),
+  categoryId: z.string({
+    required_error: "يجب اختيار تصنيف",
+  }),
+  levelId: z.string({
+    required_error: "يجب اختيار مستوى",
+  }),
+  countryId: z.string({
+    required_error: "يجب اختيار دولة",
+  }),
+  applyUrl: z.string().url({
+    message: "يجب أن يكون رابط التقديم URL صحيح",
+  }),
+  organization: z.string().min(2, {
+    message: "اسم المنظمة يجب أن يكون على الأقل حرفين",
+  }),
+  deadline: z.date({
+    required_error: "يجب تحديد الموعد النهائي",
+  }),
   amount: z.string().optional(),
-  url: z.string().url({ message: 'الرجاء إدخال رابط صحيح' }),
-  requirements: z.string().min(10, { message: 'متطلبات المنحة يجب أن تكون 10 أحرف على الأقل' }),
-  benefits: z.string().min(10, { message: 'فوائد المنحة يجب أن تكون 10 أحرف على الأقل' }),
-  status: z.enum(['active', 'closed', 'coming_soon'], { required_error: 'الرجاء اختيار حالة المنحة' }),
+  duration: z.string().optional(),
+  fullyFunded: z.boolean().default(false),
   featured: z.boolean().default(false),
+  thumbnail: z.string().optional(),
+  additionalLinks: z.string().optional(),
+  seoTitle: z.string().optional(),
+  seoDescription: z.string().optional(),
+  seoKeywords: z.string().optional(),
 });
 
-// نوع بيانات نموذج المنحة
-type ScholarshipFormValues = z.infer<typeof scholarshipFormSchema>;
+type FormValues = z.infer<typeof formSchema>;
 
-// نوع التصنيف
-interface Category {
-  id: string;
-  name: string;
+interface ScholarshipFormProps {
+  scholarshipId?: string;
 }
 
-// نوع البلد
-interface Country {
-  id: string;
-  name: string;
-}
-
-// نوع المستوى الدراسي
-interface Level {
-  id: string;
-  name: string;
-}
-
-// مكون نموذج المنحة الدراسية
-export function ScholarshipForm({ scholarshipId }: { scholarshipId?: string }) {
+export default function ScholarshipForm({ scholarshipId }: ScholarshipFormProps = {}) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
 
-  // عينات بيانات للتصنيفات
-  const [categories, setCategories] = useState<Category[]>([
-    { id: '1', name: 'هندسة' },
-    { id: '2', name: 'طب' },
-    { id: '3', name: 'علوم حاسوب' },
-    { id: '4', name: 'إدارة أعمال' },
-    { id: '5', name: 'فنون' },
-    { id: '6', name: 'علوم اجتماعية' },
-  ]);
-
-  // عينات بيانات للدول
-  const [countries, setCountries] = useState<Country[]>([
-    { id: '1', name: 'الولايات المتحدة' },
-    { id: '2', name: 'المملكة المتحدة' },
-    { id: '3', name: 'كندا' },
-    { id: '4', name: 'أستراليا' },
-    { id: '5', name: 'ألمانيا' },
-    { id: '6', name: 'فرنسا' },
-    { id: '7', name: 'اليابان' },
-    { id: '8', name: 'سنغافورة' },
-  ]);
-
-  // عينات بيانات للمستويات الدراسية
-  const [levels, setLevels] = useState<Level[]>([
-    { id: '1', name: 'بكالوريوس' },
-    { id: '2', name: 'ماجستير' },
-    { id: '3', name: 'دكتوراه' },
-    { id: '4', name: 'زمالة بحثية' },
-    { id: '5', name: 'دبلوم' },
-  ]);
-
-  // إعداد نموذج React Hook Form
-  const form = useForm<ScholarshipFormValues>({
-    resolver: zodResolver(scholarshipFormSchema),
-    defaultValues: {
-      title: '',
-      university: '',
-      description: '',
-      countryId: '',
-      levelId: '',
-      categories: [],
-      deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // بعد 30 يوم من اليوم
-      fundingType: 'full',
-      amount: '',
-      url: '',
-      requirements: '',
-      benefits: '',
-      status: 'active',
-      featured: false,
+  // جلب التصنيفات
+  const { data: categories } = useQuery({
+    queryKey: ["/api/categories"],
+    queryFn: async () => {
+      const response = await fetch("/api/categories");
+      if (!response.ok) {
+        throw new Error("Failed to fetch categories");
+      }
+      return response.json();
     },
   });
 
-  // تحميل بيانات المنحة للتحرير
-  useEffect(() => {
-    if (scholarshipId) {
-      setIsEditMode(true);
-      setIsLoading(true);
-      
-      // في التطبيق الحقيقي، سيتم جلب بيانات المنحة من API
-      // هنا نقوم بمحاكاة التحميل
-      setTimeout(() => {
-        // بيانات عينة للتحرير
-        form.reset({
-          title: 'منحة جامعة هارفارد للطلاب الدوليين',
-          university: 'جامعة هارفارد',
-          description: 'تقدم جامعة هارفارد منحاً دراسية للطلاب الدوليين المتميزين الذين يرغبون في متابعة دراستهم في إحدى أعرق الجامعات في العالم.',
-          countryId: '1',
-          levelId: '1',
-          categories: ['3', '6'],
-          deadline: new Date('2025-12-15'),
-          fundingType: 'full',
-          amount: '50000',
-          url: 'https://example.com/scholarship',
-          requirements: '- معدل تراكمي لا يقل عن 3.5\n- إجادة اللغة الإنجليزية\n- خطابات توصية\n- السيرة الذاتية',
-          benefits: '- تغطية كاملة للرسوم الدراسية\n- راتب شهري\n- تأمين صحي\n- تذكرة سفر سنوية',
-          status: 'active',
-          featured: true,
-        });
-        setIsLoading(false);
-      }, 800);
-    } else {
-      // في التطبيق الحقيقي، سيتم جلب التصنيفات والدول والمستويات من API
-      // هنا نحن نستخدم البيانات المحددة مسبقًا
-    }
-  }, [scholarshipId, form]);
+  // جلب المستويات
+  const { data: levels } = useQuery({
+    queryKey: ["/api/levels"],
+    queryFn: async () => {
+      const response = await fetch("/api/levels");
+      if (!response.ok) {
+        throw new Error("Failed to fetch levels");
+      }
+      return response.json();
+    },
+  });
 
-  // إرسال نموذج المنحة
-  const onSubmit = async (data: ScholarshipFormValues) => {
+  // جلب الدول
+  const { data: countries } = useQuery({
+    queryKey: ["/api/countries"],
+    queryFn: async () => {
+      const response = await fetch("/api/countries");
+      if (!response.ok) {
+        throw new Error("Failed to fetch countries");
+      }
+      return response.json();
+    },
+  });
+
+  // إنشاء نموذج للتحقق والإرسال
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: "",
+      slug: "",
+      description: "",
+      content: "",
+      categoryId: "",
+      levelId: "",
+      countryId: "",
+      applyUrl: "",
+      organization: "",
+      amount: "",
+      duration: "",
+      fullyFunded: false,
+      featured: false,
+      thumbnail: "",
+      additionalLinks: "",
+      seoTitle: "",
+      seoDescription: "",
+      seoKeywords: "",
+    },
+  });
+
+  // جلب بيانات المنحة في حالة التحرير
+  useEffect(() => {
+    const fetchScholarship = async () => {
+      if (!scholarshipId) return;
+
+      setIsFetching(true);
+      try {
+        const response = await fetch(`/api/scholarships/${scholarshipId}`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch scholarship");
+        }
+
+        const scholarship = await response.json();
+
+        // تعيين القيم الافتراضية للنموذج
+        form.reset({
+          title: scholarship.title || "",
+          slug: scholarship.slug || "",
+          description: scholarship.description || "",
+          content: scholarship.content || "",
+          categoryId: scholarship.categoryId?.toString() || "",
+          levelId: scholarship.levelId?.toString() || "",
+          countryId: scholarship.countryId?.toString() || "",
+          applyUrl: scholarship.applyUrl || "",
+          organization: scholarship.organization || "",
+          deadline: scholarship.deadline
+            ? new Date(scholarship.deadline)
+            : new Date(),
+          amount: scholarship.amount || "",
+          duration: scholarship.duration || "",
+          fullyFunded: scholarship.fullyFunded || false,
+          featured: scholarship.featured || false,
+          thumbnail: scholarship.thumbnail || "",
+          additionalLinks: scholarship.additionalLinks || "",
+          seoTitle: scholarship.seoTitle || "",
+          seoDescription: scholarship.seoDescription || "",
+          seoKeywords: scholarship.seoKeywords || "",
+        });
+      } catch (error) {
+        console.error("Error fetching scholarship:", error);
+        toast({
+          title: "خطأ في جلب بيانات المنحة",
+          variant: "destructive",
+        });
+      } finally {
+        setIsFetching(false);
+      }
+    };
+
+    fetchScholarship();
+  }, [scholarshipId, form, toast]);
+
+  // إنشاء منحة دراسية جديدة
+  const createScholarship = useMutation({
+    mutationFn: async (data: FormValues) => {
+      // تحويل القيم إلى الأنواع المناسبة
+      const formattedData = {
+        ...data,
+        categoryId: data.categoryId ? parseInt(data.categoryId) : null,
+        levelId: data.levelId ? parseInt(data.levelId) : null,
+        countryId: data.countryId ? parseInt(data.countryId) : null,
+        deadline: data.deadline.toISOString(),
+      };
+
+      const response = await fetch("/api/scholarships", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formattedData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Error creating scholarship");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "تمت إضافة المنحة الدراسية بنجاح",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/scholarships"] });
+      router.push("/admin/scholarships");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "خطأ في إضافة المنحة الدراسية",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // تحديث منحة دراسية موجودة
+  const updateScholarship = useMutation({
+    mutationFn: async (data: FormValues) => {
+      if (!scholarshipId) throw new Error("Scholarship ID is required");
+
+      // تحويل القيم إلى الأنواع المناسبة
+      const formattedData = {
+        ...data,
+        categoryId: data.categoryId ? parseInt(data.categoryId) : null,
+        levelId: data.levelId ? parseInt(data.levelId) : null,
+        countryId: data.countryId ? parseInt(data.countryId) : null,
+        deadline: data.deadline.toISOString(),
+      };
+
+      const response = await fetch(`/api/scholarships/${scholarshipId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formattedData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Error updating scholarship");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "تم تحديث المنحة الدراسية بنجاح",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/scholarships"] });
+      router.push("/admin/scholarships");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "خطأ في تحديث المنحة الدراسية",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // تقديم النموذج
+  const onSubmit = async (data: FormValues) => {
     setIsLoading(true);
     try {
-      // طباعة البيانات للتجربة
-      console.log('Scholarship Data:', data);
-      
-      // محاكاة الاتصال بالخادم
-      // في التطبيق الحقيقي، سيتم إرسال البيانات إلى API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast({
-        title: isEditMode ? 'تم تحديث المنحة الدراسية بنجاح' : 'تمت إضافة المنحة الدراسية بنجاح',
-        description: isEditMode ? 'تم تحديث المنحة الدراسية وحفظ التغييرات بنجاح' : 'تمت إضافة المنحة الدراسية الجديدة بنجاح',
-      });
-      
-      // العودة إلى صفحة قائمة المنح الدراسية
-      router.push('/admin/scholarships');
-    } catch (error) {
-      console.error('Error submitting scholarship:', error);
-      toast({
-        title: 'حدث خطأ',
-        description: 'لم نتمكن من حفظ المنحة الدراسية. الرجاء المحاولة مرة أخرى.',
-        variant: 'destructive',
-      });
+      if (scholarshipId) {
+        await updateScholarship.mutateAsync(data);
+      } else {
+        await createScholarship.mutateAsync(data);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (isLoading && isEditMode) {
-    return (
-      <div className="flex h-[400px] w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="mr-2 text-lg font-medium">جاري تحميل بيانات المنحة الدراسية...</span>
-      </div>
-    );
-  }
+  // توليد الرابط النظيف من العنوان
+  const generateSlug = (title: string) => {
+    const slug = title
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^\w\u0621-\u064A\-]/g, "")
+      .replace(/\-\-+/g, "-")
+      .replace(/^-+/, "")
+      .replace(/-+$/, "");
+    form.setValue("slug", slug);
+  };
+
+  // تحديث العنوان المخصص لمحركات البحث
+  const updateSeoTitle = (title: string) => {
+    if (!form.getValues("seoTitle")) {
+      form.setValue("seoTitle", title);
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">
-          {isEditMode ? 'تحرير منحة دراسية' : 'إضافة منحة دراسية جديدة'}
-        </h2>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => router.push('/admin/scholarships')}>
-            <ArrowLeft className="ml-2 h-4 w-4" />
-            العودة إلى القائمة
-          </Button>
-        </div>
+    <div className="max-w-5xl mx-auto">
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-2xl font-bold tracking-tight">
+          {scholarshipId ? "تحرير منحة دراسية" : "إضافة منحة دراسية جديدة"}
+        </h1>
+        <Button
+          variant="outline"
+          onClick={() => router.push("/admin/scholarships")}
+        >
+          <ArrowRight className="ml-2 h-4 w-4" />
+          العودة للمنح
+        </Button>
       </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="basic">المعلومات الأساسية</TabsTrigger>
-              <TabsTrigger value="details">التفاصيل</TabsTrigger>
-              <TabsTrigger value="options">الخيارات</TabsTrigger>
-            </TabsList>
-
-            {/* قسم المعلومات الأساسية */}
-            <TabsContent value="basic" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>المعلومات الأساسية</CardTitle>
-                  <CardDescription>المعلومات الرئيسية للمنحة الدراسية</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
+      {isFetching ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-8 pb-10"
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle>المعلومات الأساسية</CardTitle>
+                <CardDescription>
+                  المعلومات الأساسية للمنحة الدراسية والتفاصيل المتعلقة بها
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="title"
@@ -253,9 +377,16 @@ export function ScholarshipForm({ scholarshipId }: { scholarshipId?: string }) {
                       <FormItem>
                         <FormLabel>عنوان المنحة</FormLabel>
                         <FormControl>
-                          <Input placeholder="منحة جامعة هارفارد للطلاب الدوليين" {...field} />
+                          <Input
+                            placeholder="أدخل عنوان المنحة الدراسية"
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              generateSlug(e.target.value);
+                              updateSeoTitle(e.target.value);
+                            }}
+                          />
                         </FormControl>
-                        <FormDescription>عنوان مميز وواضح للمنحة الدراسية</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -263,312 +394,89 @@ export function ScholarshipForm({ scholarshipId }: { scholarshipId?: string }) {
 
                   <FormField
                     control={form.control}
-                    name="university"
+                    name="slug"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>اسم الجامعة / المؤسسة</FormLabel>
+                        <FormLabel>الرابط النظيف</FormLabel>
                         <FormControl>
-                          <Input placeholder="جامعة هارفارد" {...field} />
+                          <Input
+                            placeholder="رابط-نظيف-للمنحة"
+                            {...field}
+                          />
                         </FormControl>
-                        <FormDescription>اسم الجامعة أو المؤسسة التي تقدم المنحة</FormDescription>
+                        <FormDescription>
+                          سيكون عنوان URL للمنحة{" "}
+                          <code className="text-primary">
+                            /scholarships/{field.value || "slug-example"}
+                          </code>
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                </div>
 
+                <div className="grid grid-cols-1 gap-4">
                   <FormField
                     control={form.control}
                     name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>وصف المنحة</FormLabel>
+                        <FormLabel>وصف مختصر</FormLabel>
                         <FormControl>
-                          <Textarea 
-                            placeholder="وصف تفصيلي للمنحة الدراسية"
-                            className="min-h-[120px]"
-                            {...field} 
+                          <Textarea
+                            placeholder="أدخل وصف مختصر للمنحة الدراسية"
+                            className="min-h-[100px]"
+                            {...field}
                           />
                         </FormControl>
-                        <FormDescription>وصف كامل للمنحة الدراسية والبرنامج الأكاديمي</FormDescription>
+                        <FormDescription>
+                          وصف مختصر يلخص المنحة الدراسية في جملة أو جملتين
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="countryId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>البلد</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                            value={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="اختر البلد" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {countries.map(country => (
-                                <SelectItem key={country.id} value={country.id}>
-                                  {country.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>البلد الذي توجد فيه المنحة الدراسية</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="levelId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>المستوى الدراسي</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                            value={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="اختر المستوى الدراسي" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {levels.map(level => (
-                                <SelectItem key={level.id} value={level.id}>
-                                  {level.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>المستوى الأكاديمي للمنحة الدراسية</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
                   <FormField
                     control={form.control}
-                    name="categories"
-                    render={() => (
-                      <FormItem>
-                        <div className="mb-4">
-                          <FormLabel>التصنيفات</FormLabel>
-                          <FormDescription>اختر التصنيفات المناسبة للمنحة الدراسية</FormDescription>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-                          {categories.map((category) => (
-                            <FormField
-                              key={category.id}
-                              control={form.control}
-                              name="categories"
-                              render={({ field }) => {
-                                return (
-                                  <FormItem
-                                    key={category.id}
-                                    className="flex flex-row items-start space-x-3 space-x-reverse rounded-md border p-4"
-                                  >
-                                    <FormControl>
-                                      <Checkbox
-                                        checked={field.value?.includes(category.id)}
-                                        onCheckedChange={(checked) => {
-                                          const current = field.value || [];
-                                          return checked
-                                            ? field.onChange([...current, category.id])
-                                            : field.onChange(
-                                                current.filter((value) => value !== category.id)
-                                              );
-                                        }}
-                                      />
-                                    </FormControl>
-                                    <FormLabel className="font-normal">{category.name}</FormLabel>
-                                  </FormItem>
-                                );
-                              }}
-                            />
-                          ))}
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* قسم التفاصيل */}
-            <TabsContent value="details" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>تفاصيل المنحة</CardTitle>
-                  <CardDescription>التفاصيل المتعلقة بالتمويل والموعد النهائي</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="deadline"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>الموعد النهائي للتقديم</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant={"outline"}
-                                  className={"w-full justify-between pl-3 text-left font-normal"}
-                                >
-                                  {field.value ? (
-                                    format(field.value, 'PPP', { locale: ar })
-                                  ) : (
-                                    <span>اختر التاريخ</span>
-                                  )}
-                                  <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                          <FormDescription>الموعد النهائي لتقديم طلبات المنحة</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="fundingType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>نوع التمويل</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                            value={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="اختر نوع التمويل" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="full">تمويل كامل</SelectItem>
-                              <SelectItem value="partial">تمويل جزئي</SelectItem>
-                              <SelectItem value="mixed">تمويل مختلط</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>نوع التمويل المقدم من المنحة</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="amount"
+                    name="content"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>قيمة المنحة (بالدولار)</FormLabel>
+                        <FormLabel>محتوى المنحة</FormLabel>
                         <FormControl>
-                          <Input placeholder="25000" {...field} />
-                        </FormControl>
-                        <FormDescription>قيمة المنحة بالدولار الأمريكي. اتركه فارغًا إذا كانت القيمة غير محددة</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="url"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>رابط المنحة</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <LinkIcon className="absolute left-2 top-2 h-4 w-4 text-muted-foreground" />
-                            <Input className="pl-8" placeholder="https://example.com/scholarship" {...field} />
-                          </div>
-                        </FormControl>
-                        <FormDescription>رابط صفحة المنحة الرسمية للتقديم</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="requirements"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>متطلبات وشروط المنحة</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="متطلبات وشروط التقديم للمنحة الدراسية"
-                            className="min-h-[150px]"
-                            {...field} 
+                          <Editor
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="أدخل محتوى المنحة الدراسية بالتفصيل..."
                           />
                         </FormControl>
-                        <FormDescription>قائمة بالمتطلبات والشروط للتقديم للمنحة</FormDescription>
+                        <FormDescription>
+                          الوصف التفصيلي للمنحة ومتطلباتها وكيفية التقديم
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                </div>
+              </CardContent>
+            </Card>
 
+            <Card>
+              <CardHeader>
+                <CardTitle>تفاصيل المنحة</CardTitle>
+                <CardDescription>
+                  المعلومات التفصيلية والتصنيفات الخاصة بالمنحة
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
-                    name="benefits"
+                    name="categoryId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>فوائد ومميزات المنحة</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="فوائد ومميزات المنحة الدراسية"
-                            className="min-h-[150px]"
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormDescription>قائمة بالفوائد والمميزات التي تقدمها المنحة</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* قسم الخيارات */}
-            <TabsContent value="options" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>خيارات المنحة</CardTitle>
-                  <CardDescription>الحالة والخيارات الإضافية للمنحة الدراسية</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>حالة المنحة</FormLabel>
+                        <FormLabel>التصنيف</FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
@@ -576,17 +484,251 @@ export function ScholarshipForm({ scholarshipId }: { scholarshipId?: string }) {
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="اختر حالة المنحة" />
+                              <SelectValue placeholder="اختر تصنيفاً" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="active">نشطة</SelectItem>
-                            <SelectItem value="closed">مغلقة</SelectItem>
-                            <SelectItem value="coming_soon">قريباً</SelectItem>
+                            {categories?.map((category: any) => (
+                              <SelectItem
+                                key={category.id}
+                                value={category.id.toString()}
+                              >
+                                {category.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
-                        <FormDescription>حالة المنحة الدراسية الحالية</FormDescription>
                         <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="levelId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>المستوى</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="اختر مستوى" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {levels?.map((level: any) => (
+                              <SelectItem
+                                key={level.id}
+                                value={level.id.toString()}
+                              >
+                                {level.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="countryId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>الدولة</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="اختر دولة" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {countries?.map((country: any) => (
+                              <SelectItem
+                                key={country.id}
+                                value={country.id.toString()}
+                              >
+                                {country.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="organization"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>المنظمة / الجامعة</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="اسم المنظمة أو الجامعة المقدمة للمنحة"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="deadline"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>الموعد النهائي للتقديم</FormLabel>
+                        <FormControl>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant={"outline"}
+                                className={
+                                  !field.value ? "text-muted-foreground" : ""
+                                }
+                              >
+                                <CalendarIcon className="ml-2 h-4 w-4" />
+                                {field.value ? (
+                                  format(field.value, "yyyy-MM-dd", {
+                                    locale: ar,
+                                  })
+                                ) : (
+                                  <span>اختر تاريخاً</span>
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                              <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange as any}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>قيمة المنحة</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="مثل: $10,000 سنوياً"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          قيمة المنحة الدراسية إن وجدت
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="duration"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>مدة المنحة</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="مثل: سنتان دراسيتان"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          مدة المنحة الدراسية إن وجدت
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="applyUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>رابط التقديم</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="أدخل رابط صفحة التقديم للمنحة"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          رابط الصفحة التي سيتم توجيه الطلاب إليها للتقديم
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="additionalLinks"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>روابط إضافية</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="روابط إضافية متعلقة بالمنحة"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          يمكنك إضافة عدة روابط بفصلها بسطر جديد
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="fullyFunded"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-x-reverse space-y-0 rounded-md border p-4">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>منحة بتمويل كامل</FormLabel>
+                          <FormDescription>
+                            حدد هذا الخيار إذا كانت المنحة توفر تمويلاً كاملاً
+                          </FormDescription>
+                        </div>
                       </FormItem>
                     )}
                   />
@@ -595,7 +737,7 @@ export function ScholarshipForm({ scholarshipId }: { scholarshipId?: string }) {
                     control={form.control}
                     name="featured"
                     render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-x-reverse rounded-md border p-4">
+                      <FormItem className="flex flex-row items-start space-x-3 space-x-reverse space-y-0 rounded-md border p-4">
                         <FormControl>
                           <Checkbox
                             checked={field.value}
@@ -605,43 +747,111 @@ export function ScholarshipForm({ scholarshipId }: { scholarshipId?: string }) {
                         <div className="space-y-1 leading-none">
                           <FormLabel>منحة مميزة</FormLabel>
                           <FormDescription>
-                            عرض هذه المنحة في قسم المنح المميزة على الصفحة الرئيسية
+                            حدد هذا الخيار لإظهار المنحة في قسم المنح المميزة
                           </FormDescription>
                         </div>
                       </FormItem>
                     )}
                   />
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+                </div>
+              </CardContent>
+            </Card>
 
-          <div className="flex justify-end space-x-2 space-x-reverse">
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="min-w-[120px]"
-            >
-              {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-              {isLoading
-                ? isEditMode
-                  ? 'جاري التحديث...'
-                  : 'جاري الحفظ...'
-                : isEditMode
-                ? 'تحديث المنحة'
-                : <><Save className="ml-2 h-4 w-4" /> حفظ المنحة</>}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.push('/admin/scholarships')}
-              disabled={isLoading}
-            >
-              إلغاء
-            </Button>
-          </div>
-        </form>
-      </Form>
+            <Card>
+              <CardHeader>
+                <CardTitle>بيانات SEO</CardTitle>
+                <CardDescription>
+                  البيانات الوصفية لصفحة المنحة لتحسين محركات البحث
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="seoTitle"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>عنوان SEO</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="عنوان الصفحة لمحركات البحث"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          سيظهر هذا العنوان في نتائج البحث
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="seoDescription"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>وصف SEO</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="وصف الصفحة لمحركات البحث"
+                            className="resize-none"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          سيظهر هذا الوصف في نتائج البحث
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="seoKeywords"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>كلمات مفتاحية SEO</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="كلمات مفتاحية مفصولة بفواصل"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          الكلمات المفتاحية مفصولة بفواصل (مثل: منحة, دراسة, تمويل)
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex gap-3 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push("/admin/scholarships")}
+              >
+                إلغاء
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    جاري الحفظ...
+                  </>
+                ) : (
+                  <>حفظ المنحة</>
+                )}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      )}
     </div>
   );
 }
