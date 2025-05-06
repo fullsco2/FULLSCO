@@ -1,96 +1,171 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getFeaturedScholarships } from '@/lib/api';
-import ScholarshipCard from '../scholarships/scholarship-card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, GraduationCap, Calendar, Globe, AlertCircle, Loader2 } from 'lucide-react';
+import { useSiteSettings } from '@/hooks/use-site-settings';
+import { format } from 'date-fns';
+import { ar } from 'date-fns/locale';
 
-interface FeaturedScholarshipsProps {
-  title?: string;
-  description?: string;
-}
+type Scholarship = {
+  id: number;
+  title: string;
+  university: string;
+  country: string;
+  deadline: string;
+  level: string;
+  status: 'active' | 'closed' | 'coming_soon';
+  featured: boolean;
+};
 
-export default function FeaturedScholarships({
-  title = 'منح دراسية مميزة',
-  description = 'أبرز المنح الدراسية المتاحة حالياً',
-}: FeaturedScholarshipsProps) {
-  const [scholarships, setScholarships] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export function FeaturedScholarships() {
+  const { siteSettings } = useSiteSettings();
+  const [scholarships, setScholarships] = useState<Scholarship[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadFeaturedScholarships() {
+    const fetchScholarships = async () => {
       try {
-        // طلب مباشر للتأكد من التعامل مع الخادم الحالي
-        const response = await fetch('/api/scholarships/featured?limit=6');
+        setIsLoading(true);
+        // جلب المنح المميزة من API
+        const response = await fetch('/api/scholarships/featured');
+        
         if (!response.ok) {
-          throw new Error(`فشل الطلب: ${response.status}`);
+          throw new Error(`Error fetching featured scholarships: ${response.status}`);
         }
         
         const data = await response.json();
-        // التعامل مع هيكل البيانات من API الحالي
-        // قد يكون مصفوفة مباشرة أو رداً success/data
-        if (data.success && data.data) {
-          setScholarships(data.data);
-        } else if (Array.isArray(data)) {
-          setScholarships(data);
-        } else {
-          setScholarships([]);
-        }
+        setScholarships(Array.isArray(data) ? data : (data.data || []));
       } catch (error) {
-        console.error('Error loading featured scholarships:', error);
+        console.error('Error fetching featured scholarships:', error);
+        setError('Failed to load featured scholarships');
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
-    }
+    };
 
-    loadFeaturedScholarships();
-  }, []);
+    if (siteSettings?.showFeaturedScholarships) {
+      fetchScholarships();
+    }
+  }, [siteSettings]);
+
+  if (!siteSettings || !siteSettings.showFeaturedScholarships) return null;
+
+  // تنسيق التاريخ
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'PPP', { locale: ar });
+    } catch (error) {
+      return dateString;
+    }
+  };
+
+  // عرض شارة الحالة
+  const renderStatusBadge = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <Badge variant="default" className="bg-green-500 hover:bg-green-600">نشطة</Badge>;
+      case 'closed':
+        return <Badge variant="destructive">مغلقة</Badge>;
+      case 'coming_soon':
+        return <Badge variant="outline" className="border-amber-500 text-amber-500">قريباً</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
 
   return (
-    <section className="bg-gray-50 py-14 dark:bg-gray-900/50 md:py-20">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-10 text-center">
-          <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white md:text-3xl">{title}</h2>
-          <p className="mx-auto max-w-2xl text-gray-600 dark:text-gray-300">{description}</p>
-        </div>
+    <section className="py-12 md:py-16 bg-muted/30">
+      <div className="container px-4 md:px-6">
+        <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
+              {siteSettings.featuredScholarshipsTitle || 'منح دراسية مميزة'}
+            </h2>
+            <p className="text-muted-foreground">
+              {siteSettings.featuredScholarshipsDescription || 'أبرز المنح الدراسية المتاحة حالياً'}
+            </p>
+          </div>
 
-        {loading ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="animate-pulse rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-                <div className="h-48 bg-gray-200 dark:bg-gray-800"></div>
-                <div className="p-4 space-y-3">
-                  <div className="h-6 bg-gray-200 dark:bg-gray-800 rounded w-3/4"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-full"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-full"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-1/2"></div>
-                  <div className="h-10 bg-gray-200 dark:bg-gray-800 rounded"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : scholarships.length === 0 ? (
-          <div className="py-10 text-center">
-            <p className="text-gray-500 dark:text-gray-400">لا توجد منح مميزة حالياً.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {scholarships.map((scholarship) => (
-              <ScholarshipCard key={scholarship.id} scholarship={scholarship} featured={true} />
-            ))}
-          </div>
-        )}
-
-        <div className="mt-12 text-center">
-          <Link href="/scholarships">
-            <Button variant="outline" size="lg" className="gap-2">
+          <Link href="/scholarships" passHref>
+            <Button variant="outline" className="shrink-0">
+              <ArrowLeft className="ml-2 h-4 w-4" />
               عرض جميع المنح
-              <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
         </div>
+
+        {isLoading ? (
+          <div className="flex justify-center items-center min-h-[300px]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="mr-2">جاري تحميل المنح الدراسية...</span>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center min-h-[300px] text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+            <h3 className="text-xl font-semibold">حدث خطأ أثناء تحميل المنح الدراسية</h3>
+            <p className="text-muted-foreground mt-2">{error}</p>
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={() => window.location.reload()}
+            >
+              إعادة المحاولة
+            </Button>
+          </div>
+        ) : scholarships.length === 0 ? (
+          <div className="flex flex-col items-center justify-center min-h-[300px] text-center">
+            <GraduationCap className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-xl font-semibold">لا توجد منح دراسية مميزة حالياً</h3>
+            <p className="text-muted-foreground mt-2">الرجاء العودة لاحقاً للاطلاع على المنح المميزة</p>
+            <Link href="/scholarships" passHref>
+              <Button className="mt-4">
+                <GraduationCap className="ml-2 h-4 w-4" />
+                تصفح جميع المنح
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="grid gap-6 pt-8 md:grid-cols-2 lg:grid-cols-3">
+            {scholarships.map((scholarship) => (
+              <Card key={scholarship.id} className="overflow-hidden">
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="text-lg">{scholarship.title}</CardTitle>
+                    {renderStatusBadge(scholarship.status)}
+                  </div>
+                  <CardDescription className="flex items-center pt-2">
+                    <Globe className="h-4 w-4 ml-1" />
+                    {scholarship.university}, {scholarship.country}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pb-3">
+                  <div className="grid grid-cols-2 gap-y-2">
+                    <div className="flex items-center">
+                      <GraduationCap className="h-4 w-4 ml-1 text-muted-foreground" />
+                      <span className="text-sm">{scholarship.level}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Calendar className="h-4 w-4 ml-1 text-muted-foreground" />
+                      <span className="text-sm">{formatDate(scholarship.deadline)}</span>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Link href={`/scholarships/${scholarship.id}`} passHref className="w-full">
+                    <Button variant="outline" className="w-full">
+                      عرض التفاصيل
+                    </Button>
+                  </Link>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

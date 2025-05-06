@@ -1,72 +1,77 @@
 'use client';
 
 import Link from 'next/link';
-import { Search, GraduationCap, Globe, LucideBriefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Search, GraduationCap } from 'lucide-react';
+import { useSiteSettings } from '@/hooks/use-site-settings';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
-interface HeroSectionProps {
-  title?: string;
-  subtitle?: string;
-  description?: string;
-}
+export function HeroSection() {
+  const { siteSettings } = useSiteSettings();
+  const [searchQuery, setSearchQuery] = useState('');
+  const router = useRouter();
 
-export default function HeroSection({ 
-  title = 'ابحث عن المنح الدراسية المناسبة لك', 
-  subtitle = 'اكتشف الاف المنح الدراسية', 
-  description = 'أكبر قاعدة بيانات للمنح الدراسية حول العالم',
-}: HeroSectionProps) {
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/scholarships?query=${encodeURIComponent(searchQuery)}`);
+    }
+  };
+
+  if (!siteSettings || !siteSettings.showHeroSection) return null;
+
   return (
-    <section className="relative bg-gradient-to-br from-primary/90 to-primary py-16 text-white md:py-24">
-      {/* زخرفة الخلفية */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -bottom-8 -left-24 h-64 w-64 rounded-full bg-white opacity-10 md:h-96 md:w-96"></div>
-        <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white opacity-10 md:h-[30rem] md:w-[30rem]"></div>
-      </div>
-      
-      <div className="container relative z-10 mx-auto px-4 sm:px-6">
-        <div className="mx-auto max-w-4xl text-center">
-          <h1 className="mb-4 text-3xl font-bold md:text-5xl">{title}</h1>
-          <h2 className="mb-6 text-xl md:text-2xl">{subtitle}</h2>
-          <p className="mb-8 text-lg opacity-90 md:text-xl">{description}</p>
-          
-          <div className="mb-12 flex flex-wrap justify-center gap-4">
-            <Link href="/scholarships">
-              <Button size="lg" className="gap-2 bg-white text-primary hover:bg-white/90">
-                <Search className="h-5 w-5" />
-                استكشف المنح
+    <section className="bg-gradient-to-br from-primary/10 to-primary/5 py-12 md:py-20">
+      <div className="container px-4 md:px-6">
+        <div className="grid gap-6 md:grid-cols-2 md:gap-10 lg:gap-16 items-center">
+          <div className="flex flex-col justify-center space-y-4">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
+                {siteSettings.heroTitle || 'ابحث عن المنح الدراسية المناسبة لك'}
+              </h1>
+              <p className="text-muted-foreground md:text-xl">
+                {siteSettings.heroDescription || 'أكبر قاعدة بيانات للمنح الدراسية حول العالم'}
+              </p>
+            </div>
+            <form onSubmit={handleSearch} className="flex max-w-md space-x-2 rtl:space-x-reverse">
+              <div className="relative flex-1">
+                <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="ابحث عن منحة دراسية"
+                  className="pl-10 pr-3"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <Button type="submit" className="shrink-0">
+                بحث
               </Button>
-            </Link>
-            <Link href="/scholarships?funded=true">
-              <Button size="lg" variant="outline" className="gap-2 border-white text-white hover:bg-white/10">
-                <GraduationCap className="h-5 w-5" />
-                منح ممولة بالكامل
-              </Button>
-            </Link>
+            </form>
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+              <Link href="/scholarships" passHref>
+                <Button size="lg">
+                  <GraduationCap className="ml-2 h-5 w-5" />
+                  تصفح جميع المنح
+                </Button>
+              </Link>
+              <Link href="/articles" passHref>
+                <Button variant="outline" size="lg">
+                  أحدث المقالات
+                </Button>
+              </Link>
+            </div>
           </div>
-          
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3">
-            <div className="rounded-lg bg-white/10 p-4 backdrop-blur-sm">
-              <div className="mb-3 flex items-center justify-center rounded-full bg-white p-3 text-primary">
-                <GraduationCap className="h-6 w-6" />
+          <div className="flex justify-center">
+            <div className="relative h-[350px] w-[350px] md:h-[400px] md:w-[400px] lg:h-[500px] lg:w-[500px] bg-gradient-to-br from-primary/20 to-primary rounded-full flex items-center justify-center overflow-hidden">
+              <div className="absolute inset-4 bg-background rounded-full flex items-center justify-center">
+                <GraduationCap className="h-24 w-24 md:h-32 md:w-32 text-primary" />
               </div>
-              <h3 className="text-lg font-semibold">منح متنوعة</h3>
-              <p className="text-sm opacity-90">آلاف المنح الدراسية لجميع التخصصات والمستويات</p>
-            </div>
-            
-            <div className="rounded-lg bg-white/10 p-4 backdrop-blur-sm">
-              <div className="mb-3 flex items-center justify-center rounded-full bg-white p-3 text-primary">
-                <Globe className="h-6 w-6" />
-              </div>
-              <h3 className="text-lg font-semibold">حول العالم</h3>
-              <p className="text-sm opacity-90">منح دراسية في جامعات مرموقة من مختلف دول العالم</p>
-            </div>
-            
-            <div className="rounded-lg bg-white/10 p-4 backdrop-blur-sm sm:col-span-2 md:col-span-1">
-              <div className="mb-3 flex items-center justify-center rounded-full bg-white p-3 text-primary">
-                <LucideBriefcase className="h-6 w-6" />
-              </div>
-              <h3 className="text-lg font-semibold">فرص مهنية</h3>
-              <p className="text-sm opacity-90">تواصل مع الخبراء واحصل على توجيه مهني بعد التخرج</p>
+              <div className="absolute top-[15%] left-[10%] h-16 w-16 bg-primary/20 rounded-full" />
+              <div className="absolute bottom-[20%] right-[15%] h-12 w-12 bg-primary/30 rounded-full" />
+              <div className="absolute top-[40%] right-[10%] h-8 w-8 bg-primary/40 rounded-full" />
             </div>
           </div>
         </div>

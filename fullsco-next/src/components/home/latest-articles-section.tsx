@@ -1,143 +1,176 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Calendar, Clock } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { getLatestArticles } from '@/lib/api';
-import { formatDate } from '@/lib/utils';
+import { ArrowLeft, Clock, FileText, Tag, User, Loader2, AlertCircle } from 'lucide-react';
+import { useSiteSettings } from '@/hooks/use-site-settings';
+import { format } from 'date-fns';
+import { ar } from 'date-fns/locale';
 
-interface LatestArticlesSectionProps {
-  title?: string;
-  description?: string;
-}
+type Post = {
+  id: number;
+  title: string;
+  excerpt: string;
+  slug: string;
+  authorName?: string;
+  createdAt: string;
+  readTime?: number;
+  thumbnailUrl?: string;
+  category?: string;
+};
 
-export default function LatestArticlesSection({
-  title = 'أحدث المقالات',
-  description = 'تعرف على آخر النصائح والمعلومات',
-}: LatestArticlesSectionProps) {
-  const [articles, setArticles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export function LatestArticlesSection() {
+  const { siteSettings } = useSiteSettings();
+  const [articles, setArticles] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadArticles() {
+    const fetchArticles = async () => {
       try {
-        // طلب مباشر للتأكد من التعامل مع الخادم الحالي
+        setIsLoading(true);
         const response = await fetch('/api/posts?limit=3');
+        
         if (!response.ok) {
-          throw new Error(`فشل الطلب: ${response.status}`);
+          throw new Error(`Error fetching articles: ${response.status}`);
         }
         
         const data = await response.json();
-        
-        // التعامل مع هيكل البيانات من API الحالي
-        if (data.success && data.data) {
-          setArticles(data.data);
-        } else if (Array.isArray(data)) {
-          setArticles(data);
-        } else {
-          setArticles([]);
-        }
+        setArticles(data?.data || []);
       } catch (error) {
-        console.error('Error loading articles:', error);
+        console.error('Error fetching articles:', error);
+        setError('Failed to load articles');
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
-    }
+    };
 
-    loadArticles();
-  }, []);
+    if (siteSettings?.showLatestArticles) {
+      fetchArticles();
+    }
+  }, [siteSettings]);
+
+  if (!siteSettings || !siteSettings.showLatestArticles) return null;
+
+  // تنسيق التاريخ
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'PPP', { locale: ar });
+    } catch (error) {
+      return dateString;
+    }
+  };
 
   return (
-    <section className="py-14 md:py-20">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-10 text-center">
-          <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white md:text-3xl">{title}</h2>
-          <p className="mx-auto max-w-2xl text-gray-600 dark:text-gray-300">{description}</p>
-        </div>
+    <section className="py-12 md:py-16">
+      <div className="container px-4 md:px-6">
+        <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
+              {siteSettings.latestArticlesTitle || 'أحدث المقالات'}
+            </h2>
+            <p className="text-muted-foreground">
+              {siteSettings.latestArticlesDescription || 'تعرف على آخر النصائح والمعلومات'}
+            </p>
+          </div>
 
-        {loading ? (
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="animate-pulse rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-                <div className="h-48 bg-gray-200 dark:bg-gray-800"></div>
-                <div className="p-4 space-y-3">
-                  <div className="h-6 bg-gray-200 dark:bg-gray-800 rounded w-3/4"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-full"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-full"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-1/2"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : articles.length === 0 ? (
-          <div className="py-10 text-center">
-            <p className="text-gray-500 dark:text-gray-400">لا توجد مقالات متاحة حالياً.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {articles.map((article) => (
-              <div 
-                key={article.id} 
-                className="group overflow-hidden rounded-lg border border-gray-200 bg-white transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
-              >
-                {/* صورة المقال */}
-                <Link 
-                  href={`/articles/${article.slug || article.id}`} 
-                  className="block h-48 overflow-hidden bg-gray-200 dark:bg-gray-800"
-                >
-                  {article.thumbnail && (
-                    <img 
-                      src={article.thumbnail} 
-                      alt={article.title} 
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  )}
-                </Link>
-                
-                <div className="p-4">
-                  {/* عنوان المقال */}
-                  <Link href={`/articles/${article.slug || article.id}`}>
-                    <h3 className="mb-2 line-clamp-2 text-xl font-bold transition-colors group-hover:text-primary">
-                      {article.title}
-                    </h3>
-                  </Link>
-                  
-                  {/* وصف مختصر */}
-                  <p className="mb-4 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
-                    {article.summary || article.excerpt || article.content?.slice(0, 150)}
-                  </p>
-                  
-                  {/* معلومات النشر */}
-                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                    {article.createdAt && (
-                      <div className="flex items-center">
-                        <Clock className="ml-1 h-3 w-3" />
-                        {formatDate(article.createdAt)}
-                      </div>
-                    )}
-                    
-                    <Link 
-                      href={`/articles/${article.slug || article.id}`}
-                      className="font-medium text-primary transition-colors hover:text-primary/80"
-                    >
-                      قراءة المزيد
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-12 text-center">
-          <Link href="/articles">
-            <Button variant="outline" size="lg" className="gap-2">
+          <Link href="/articles" passHref>
+            <Button variant="outline" className="shrink-0">
+              <ArrowLeft className="ml-2 h-4 w-4" />
               عرض جميع المقالات
-              <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
         </div>
+
+        {isLoading ? (
+          <div className="flex justify-center items-center min-h-[300px]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="mr-2">جاري تحميل المقالات...</span>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center min-h-[300px] text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+            <h3 className="text-xl font-semibold">حدث خطأ أثناء تحميل المقالات</h3>
+            <p className="text-muted-foreground mt-2">{error}</p>
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={() => window.location.reload()}
+            >
+              إعادة المحاولة
+            </Button>
+          </div>
+        ) : articles.length === 0 ? (
+          <div className="flex flex-col items-center justify-center min-h-[300px] text-center">
+            <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-xl font-semibold">لا توجد مقالات حالياً</h3>
+            <p className="text-muted-foreground mt-2">ستظهر هنا آخر المقالات والمحتوى المفيد بمجرد نشرها</p>
+          </div>
+        ) : (
+          <div className="grid gap-6 pt-8 md:grid-cols-2 lg:grid-cols-3">
+            {articles.map((article) => (
+              <Card key={article.id} className="overflow-hidden">
+                {article.thumbnailUrl && (
+                  <div className="relative h-48 w-full overflow-hidden">
+                    <img
+                      src={article.thumbnailUrl}
+                      alt={article.title}
+                      className="w-full h-full object-cover transition-transform hover:scale-105"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+                <CardHeader>
+                  <CardTitle className="line-clamp-2">
+                    <Link href={`/articles/${article.slug || article.id}`} className="hover:text-primary transition-colors">
+                      {article.title}
+                    </Link>
+                  </CardTitle>
+                  {article.category && (
+                    <CardDescription className="flex items-center">
+                      <Tag className="h-3 w-3 ml-1" />
+                      {article.category}
+                    </CardDescription>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <p className="line-clamp-3 text-muted-foreground text-sm">
+                    {article.excerpt}
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                    {article.authorName && (
+                      <div className="flex items-center">
+                        <User className="h-3 w-3 ml-1" />
+                        {article.authorName}
+                      </div>
+                    )}
+                    <div className="flex items-center">
+                      <Clock className="h-3 w-3 ml-1" />
+                      {formatDate(article.createdAt)}
+                    </div>
+                    {article.readTime && (
+                      <div className="flex items-center">
+                        <Clock className="h-3 w-3 ml-1" />
+                        {article.readTime} دقيقة للقراءة
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Link href={`/articles/${article.slug || article.id}`} passHref className="w-full">
+                    <Button variant="outline" className="w-full">
+                      قراءة المزيد
+                    </Button>
+                  </Link>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

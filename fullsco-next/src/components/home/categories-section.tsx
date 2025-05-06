@@ -1,119 +1,120 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, BookOpen, Code, Flask, Briefcase, Stethoscope, Building, Users, Compass } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { getCategories } from '@/lib/api';
+import { BookOpen, Briefcase, Code, GraduationCap, HeartPulse, Lightbulb, PenSquare, Ruler, Beaker } from 'lucide-react';
+import { useSiteSettings } from '@/hooks/use-site-settings';
 
-interface CategoriesSectionProps {
-  title?: string;
+type Category = {
+  id: number;
+  name: string;
+  slug: string;
   description?: string;
-}
-
-// رموز للتخصصات
-const categoryIcons: Record<string, any> = {
-  'business': <Briefcase className="h-6 w-6" />,
-  'computer-science': <Code className="h-6 w-6" />,
-  'engineering': <Building className="h-6 w-6" />,
-  'medicine': <Stethoscope className="h-6 w-6" />,
-  'science': <Flask className="h-6 w-6" />,
-  'humanities': <Users className="h-6 w-6" />,
-  'education': <BookOpen className="h-6 w-6" />,
-  // الرمز الافتراضي للتخصصات غير المعروفة
-  'default': <Compass className="h-6 w-6" />
 };
 
-export default function CategoriesSection({
-  title = 'تصفح حسب التخصص',
-  description = 'اختر المنح المناسبة حسب مجال دراستك',
-}: CategoriesSectionProps) {
-  const [categories, setCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export function CategoriesSection() {
+  const { siteSettings } = useSiteSettings();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    async function loadCategories() {
+    const fetchCategories = async () => {
       try {
-        // طلب مباشر للتأكد من التعامل مع الخادم الحالي
+        setIsLoading(true);
+        // جلب التصنيفات من API
         const response = await fetch('/api/categories');
+        
         if (!response.ok) {
-          throw new Error(`فشل الطلب: ${response.status}`);
+          throw new Error(`Error fetching categories: ${response.status}`);
         }
         
         const data = await response.json();
-        // التعامل مع هيكل البيانات من API الحالي
-        if (data.success && data.data) {
-          setCategories(data.data);
-        } else if (Array.isArray(data)) {
-          setCategories(data);
-        } else {
-          setCategories([]);
-        }
+        setCategories(Array.isArray(data) ? data : (data.data || []));
       } catch (error) {
-        console.error('Error loading categories:', error);
+        console.error('Error fetching categories:', error);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
+    };
+
+    if (siteSettings?.showCategoriesSection) {
+      fetchCategories();
     }
+  }, [siteSettings]);
 
-    loadCategories();
-  }, []);
+  // إذا كانت الإعدادات تشير إلى عدم عرض قسم التصنيفات
+  if (!siteSettings || !siteSettings.showCategoriesSection) return null;
 
-  // الحصول على رمز للتخصص
-  const getCategoryIcon = (category: any) => {
-    const slug = category.slug?.toLowerCase();
-    // تحقق من وجود رمز مخصص للتخصص بناءً على الاسم المستعار
-    return categoryIcons[slug] || categoryIcons.default;
+  // تحديد الأيقونة المناسبة لكل فئة
+  const getCategoryIcon = (slug: string) => {
+    const iconClasses = "h-6 w-6 shrink-0";
+
+    switch (slug.toLowerCase()) {
+      case 'business':
+      case 'business-administration':
+      case 'economics':
+        return <Briefcase className={iconClasses} />;
+      case 'computer-science':
+      case 'it':
+      case 'programming':
+        return <Code className={iconClasses} />;
+      case 'medicine':
+      case 'pharmacy':
+        return <HeartPulse className={iconClasses} />;
+      case 'engineering':
+      case 'architecture':
+        return <Ruler className={iconClasses} />;
+      case 'science':
+      case 'physics':
+      case 'chemistry':
+        return <Lightbulb className={iconClasses} />;
+      case 'arts':
+      case 'literature':
+        return <PenSquare className={iconClasses} />;
+      case 'education':
+        return <BookOpen className={iconClasses} />;
+      default:
+        return <GraduationCap className={iconClasses} />;
+    }
   };
 
   return (
-    <section className="py-14 md:py-20">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-10 text-center">
-          <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white md:text-3xl">{title}</h2>
-          <p className="mx-auto max-w-2xl text-gray-600 dark:text-gray-300">{description}</p>
+    <section className="py-12 md:py-16">
+      <div className="container px-4 md:px-6">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
+            {siteSettings.categoriesSectionTitle || 'تصفح حسب التخصص'}
+          </h2>
+          <p className="mt-2 text-muted-foreground">
+            {siteSettings.categoriesSectionDescription || 'اختر المنح المناسبة حسب مجال دراستك'}
+          </p>
         </div>
 
-        {loading ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {Array.from({ length: 10 }).map((_, index) => (
-              <div key={index} className="animate-pulse">
-                <div className="flex flex-col items-center rounded-lg border border-gray-200 bg-white p-4 text-center transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
-                  <div className="mb-3 h-12 w-12 rounded-full bg-gray-200 dark:bg-gray-800"></div>
-                  <div className="h-5 w-24 bg-gray-200 dark:bg-gray-800 rounded-md"></div>
-                </div>
+        {isLoading ? (
+          <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 animate-pulse">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="flex flex-col items-center justify-center rounded-lg bg-muted p-6 h-[120px]">
+                <div className="h-10 w-10 rounded-full bg-muted-foreground/20 mb-3"></div>
+                <div className="h-4 w-24 bg-muted-foreground/20 rounded"></div>
               </div>
             ))}
           </div>
-        ) : categories.length === 0 ? (
-          <div className="py-10 text-center">
-            <p className="text-gray-500 dark:text-gray-400">لا توجد تخصصات متاحة حالياً.</p>
-          </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {categories.map((category) => (
-              <Link 
-                key={category.id} 
+              <Link
+                key={category.id}
                 href={`/scholarships?category=${category.slug}`}
-                className="flex flex-col items-center rounded-lg border border-gray-200 bg-white p-4 text-center transition-all hover:border-primary hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
+                className="group flex flex-col items-center justify-center rounded-lg bg-muted/50 p-6 hover:bg-muted transition-colors"
               >
-                <div className="mb-3 rounded-full bg-primary/10 p-3 text-primary">
-                  {getCategoryIcon(category)}
+                <div className="mb-3 rounded-full bg-primary/10 p-3 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                  {getCategoryIcon(category.slug)}
                 </div>
-                <h3 className="font-medium">{category.name}</h3>
+                <span className="text-sm font-medium">{category.name}</span>
               </Link>
             ))}
           </div>
         )}
-
-        <div className="mt-10 text-center">
-          <Link href="/scholarships">
-            <Button variant="outline" size="lg" className="gap-2">
-              عرض جميع المنح
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
       </div>
     </section>
   );

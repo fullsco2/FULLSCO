@@ -1,146 +1,156 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getStatistics } from '@/lib/api';
-import { TrendingUp, GraduationCap, Globe, Award, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { GraduationCap, BookOpen, Globe, Users } from 'lucide-react';
+import { useSiteSettings } from '@/hooks/use-site-settings';
+import { Counter } from '@/components/ui/counter';
 
-interface StatisticsSectionProps {
-  title?: string;
-  description?: string;
-}
-
-interface StatisticItem {
+type Statistic = {
   id: number;
   title: string;
-  value: string;
+  value: number;
   icon?: string;
-  color?: string;
-}
-
-// رموز الإحصائيات
-const statisticIcons: Record<string, any> = {
-  scholarships: <Award className="h-8 w-8" />,
-  students: <Users className="h-8 w-8" />,
-  countries: <Globe className="h-8 w-8" />,
-  universities: <GraduationCap className="h-8 w-8" />,
-  // رمز افتراضي
-  default: <TrendingUp className="h-8 w-8" />,
 };
 
-// ألوان الإحصائيات
-const statisticColors: Record<string, string> = {
-  scholarships: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-  students: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
-  countries: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
-  universities: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
-  // لون افتراضي
-  default: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
-};
-
-export default function StatisticsSection({
-  title = 'إحصائيات',
-  description = 'أرقام عن المنح الدراسية والطلاب حول العالم',
-}: StatisticsSectionProps) {
-  const [statistics, setStatistics] = useState<StatisticItem[]>([]);
-  const [loading, setLoading] = useState(true);
+export function StatisticsSection() {
+  const { siteSettings } = useSiteSettings();
+  const [statistics, setStatistics] = useState<Statistic[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    async function loadStatistics() {
+    const fetchStatistics = async () => {
       try {
-        // طلب مباشر للتأكد من التعامل مع الخادم الحالي
+        setIsLoading(true);
         const response = await fetch('/api/statistics');
+        
         if (!response.ok) {
-          throw new Error(`فشل الطلب: ${response.status}`);
+          throw new Error(`Error fetching statistics: ${response.status}`);
         }
         
         const data = await response.json();
-        
-        // التعامل مع هيكل البيانات من API الحالي
-        if (data.success && data.data) {
-          setStatistics(data.data);
-        } else if (Array.isArray(data)) {
-          setStatistics(data);
-        } else {
-          setStatistics([]);
-        }
+        setStatistics(data?.data || []);
       } catch (error) {
-        console.error('Error loading statistics:', error);
+        console.error('Error fetching statistics:', error);
+        // في حالة فشل الجلب، نستخدم بيانات افتراضية
+        setStatistics([]);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
+      }
+    };
+
+    if (siteSettings?.showStatisticsSection) {
+      fetchStatistics();
+    }
+  }, [siteSettings]);
+
+  if (!siteSettings || !siteSettings.showStatisticsSection) return null;
+
+  // تحديد الأيقونة المناسبة حسب النوع
+  const getIcon = (icon?: string, index?: number) => {
+    const iconClass = "h-8 w-8 text-primary";
+    if (icon) {
+      // إذا كان هناك اسم أيقونة محدد
+      switch (icon.toLowerCase()) {
+        case 'graduation':
+        case 'cap':
+          return <GraduationCap className={iconClass} />;
+        case 'book':
+        case 'books':
+          return <BookOpen className={iconClass} />;
+        case 'globe':
+        case 'world':
+          return <Globe className={iconClass} />;
+        case 'users':
+        case 'people':
+          return <Users className={iconClass} />;
+        default:
+          return <GraduationCap className={iconClass} />;
       }
     }
-
-    loadStatistics();
-  }, []);
-
-  // الحصول على رمز للإحصائية
-  const getStatisticIcon = (statistic: StatisticItem) => {
-    // محاولة العثور على رمز بناءً على العنوان أو العنوان بالإنجليزية إذا كان موجوداً في البيانات
-    const iconKey = statistic.icon?.toLowerCase() || statistic.title.toLowerCase();
-    for (const key in statisticIcons) {
-      if (iconKey.includes(key)) {
-        return statisticIcons[key];
-      }
-    }
-    return statisticIcons.default;
-  };
-
-  // الحصول على لون للإحصائية
-  const getStatisticColor = (statistic: StatisticItem) => {
-    // إذا كان هناك لون محدد من الخادم
-    if (statistic.color) {
-      return `bg-${statistic.color}-100 text-${statistic.color}-600 dark:bg-${statistic.color}-900/30 dark:text-${statistic.color}-400`;
-    }
-  
-    // محاولة العثور على لون بناءً على العنوان أو العنوان بالإنجليزية
-    const colorKey = statistic.icon?.toLowerCase() || statistic.title.toLowerCase();
-    for (const key in statisticColors) {
-      if (colorKey.includes(key)) {
-        return statisticColors[key];
-      }
-    }
-    return statisticColors.default;
+    
+    // اختيار الأيقونة الافتراضية بناءً على الترتيب
+    const icons = [<GraduationCap key="grad" className={iconClass} />, <BookOpen key="book" className={iconClass} />, <Globe key="globe" className={iconClass} />, <Users key="users" className={iconClass} />];
+    return icons[index! % icons.length];
   };
 
   return (
-    <section className="bg-gray-50 py-14 dark:bg-gray-900/50 md:py-20">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-10 text-center">
-          <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white md:text-3xl">{title}</h2>
-          <p className="mx-auto max-w-2xl text-gray-600 dark:text-gray-300">{description}</p>
+    <section className="py-12 md:py-16 bg-gradient-to-br from-primary/5 to-primary/10">
+      <div className="container px-4 md:px-6">
+        <div className="text-center mb-10">
+          <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
+            {siteSettings.statisticsSectionTitle || 'إحصائيات'}
+          </h2>
+          <p className="mt-2 text-muted-foreground">
+            {siteSettings.statisticsSectionDescription || 'أرقام عن المنح الدراسية والطلاب حول العالم'}
+          </p>
         </div>
 
-        {loading ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="animate-pulse rounded-lg border border-gray-200 bg-white p-6 text-center dark:border-gray-800 dark:bg-gray-900">
-                <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gray-200 dark:bg-gray-800"></div>
-                <div className="mx-auto mb-2 h-5 w-20 bg-gray-200 dark:bg-gray-800 rounded-md"></div>
-                <div className="mx-auto h-8 w-28 bg-gray-200 dark:bg-gray-800 rounded-md"></div>
-              </div>
+        {isLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 animate-pulse">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i} className="overflow-hidden border-0 shadow-sm bg-muted/30">
+                <CardContent className="p-6 flex flex-col items-center justify-center min-h-[160px]">
+                  <div className="rounded-full bg-muted h-12 w-12 mb-4"></div>
+                  <div className="h-6 bg-muted rounded w-24 mb-2"></div>
+                  <div className="h-4 bg-muted rounded w-16"></div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         ) : statistics.length === 0 ? (
-          <div className="py-10 text-center">
-            <p className="text-gray-500 dark:text-gray-400">لا توجد إحصائيات متاحة حالياً.</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {/* إحصائيات افتراضية للعرض فقط */}
+            <StatisticCard 
+              title="منح دراسية" 
+              value={1500} 
+              icon={<GraduationCap className="h-8 w-8 text-primary" />} 
+            />
+            <StatisticCard 
+              title="طلاب" 
+              value={5000} 
+              icon={<Users className="h-8 w-8 text-primary" />} 
+            />
+            <StatisticCard 
+              title="جامعات" 
+              value={250} 
+              icon={<BookOpen className="h-8 w-8 text-primary" />} 
+            />
+            <StatisticCard 
+              title="دول" 
+              value={80} 
+              icon={<Globe className="h-8 w-8 text-primary" />} 
+            />
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {statistics.map((statistic) => (
-              <div 
-                key={statistic.id} 
-                className="rounded-lg border border-gray-200 bg-white p-6 text-center dark:border-gray-800 dark:bg-gray-900"
-              >
-                <div className={`mb-4 mx-auto flex h-16 w-16 items-center justify-center rounded-full ${getStatisticColor(statistic)}`}>
-                  {getStatisticIcon(statistic)}
-                </div>
-                <p className="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">{statistic.title}</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">{statistic.value}</p>
-              </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {statistics.map((stat, index) => (
+              <StatisticCard 
+                key={stat.id}
+                title={stat.title} 
+                value={stat.value} 
+                icon={getIcon(stat.icon, index)} 
+              />
             ))}
           </div>
         )}
       </div>
     </section>
+  );
+}
+
+function StatisticCard({ title, value, icon }: { title: string; value: number; icon: React.ReactNode }) {
+  return (
+    <Card className="overflow-hidden border-0 shadow-sm bg-muted/30 hover:shadow-md transition-shadow duration-300">
+      <CardContent className="p-6 flex flex-col items-center justify-center text-center">
+        <div className="rounded-full bg-primary/10 p-3 mb-4">
+          {icon}
+        </div>
+        <h3 className="text-3xl font-bold">
+          <Counter value={value} duration={2000} />
+        </h3>
+        <p className="text-muted-foreground">{title}</p>
+      </CardContent>
+    </Card>
   );
 }
