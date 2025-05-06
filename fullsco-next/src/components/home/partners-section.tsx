@@ -18,8 +18,22 @@ export default function PartnersSection({
   useEffect(() => {
     async function loadPartners() {
       try {
-        const data = await getPartners();
-        setPartners(data);
+        // طلب مباشر للتأكد من التعامل مع الخادم الحالي
+        const response = await fetch('/api/partners');
+        if (!response.ok) {
+          throw new Error(`فشل الطلب: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // التعامل مع هيكل البيانات من API الحالي
+        if (data.success && data.data) {
+          setPartners(data.data);
+        } else if (Array.isArray(data)) {
+          setPartners(data);
+        } else {
+          setPartners([]);
+        }
       } catch (error) {
         console.error('Error loading partners:', error);
       } finally {
