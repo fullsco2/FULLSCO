@@ -10,6 +10,8 @@ import ArticleDetail from "@/pages/article-detail";
 import StaticPage from "@/pages/static-page";
 import PageById from "@/pages/page-by-id";
 import { AuthProvider } from "@/hooks/use-auth";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 
 // استيراد صفحات قصص النجاح بشكل كسول
 const SuccessStories = lazy(() => import("@/pages/success-stories"));
@@ -108,117 +110,119 @@ function App() {
   }, [location]);
 
   return (
-    <AuthProvider>
-      <SiteSettingsProvider>
-        <ScholarshipsProvider>
-          <PostsProvider>
-            <SuccessStoriesProvider>
-              <FilterOptionsProvider>
-                <TooltipProvider>
-                  {/* مكون لتطبيق ألوان إعدادات الموقع */}
-                  <ThemeColors />
-                  {!isAdminPage && <Header />}
-                  
-                  {/* إضافة مزود الإشعارات لصفحات لوحة التحكم فقط */}
-                  {isAdminPage && location !== '/admin/login' ? (
-                    <NotificationProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <SiteSettingsProvider>
+          <ScholarshipsProvider>
+            <PostsProvider>
+              <SuccessStoriesProvider>
+                <FilterOptionsProvider>
+                  <TooltipProvider>
+                    {/* مكون لتطبيق ألوان إعدادات الموقع */}
+                    <ThemeColors />
+                    {!isAdminPage && <Header />}
+                    
+                    {/* إضافة مزود الإشعارات لصفحات لوحة التحكم فقط */}
+                    {isAdminPage && location !== '/admin/login' ? (
+                      <NotificationProvider>
+                        <Switch>
+                          {/* Admin routes */}
+                          <Route path="/admin/new" component={NewDashboard} />
+                          <Route path="/admin" component={AdminDashboard} />
+                          <Route path="/admin/dashboard" component={AdminDashboard} />
+                          <Route path="/admin/scholarships" component={AdminScholarships} />
+                          <Route path="/admin/scholarships/create" component={CreateScholarship} />
+                          <Route path="/admin/scholarships/edit/:id" component={CreateScholarship} />
+                          <Route path="/admin/categories" component={AdminCategories} />
+                          <Route path="/admin/levels" component={AdminLevels} />
+                          <Route path="/admin/countries" component={AdminCountries} />
+                          <Route path="/admin/posts" component={AdminPosts} />
+                          <Route path="/admin/posts/create" component={CreatePost} />
+                          <Route path="/admin/posts/edit/:id" component={CreatePost} />
+                          <Route path="/admin/users" component={AdminUsers} />
+                          <Route path="/admin/settings" component={AdminSettings} />
+                          <Route path="/admin/settings/general" component={GeneralSettings} />
+                          <Route path="/admin/settings/appearance" component={AppearanceSettings} />
+                          <Route path="/admin/settings/contact" component={ContactSettings} />
+                          <Route path="/admin/settings/social" component={SocialSettings} />
+                          <Route path="/admin/settings/home-sections" component={HomeSectionsSettings} />
+                          <Route path="/admin/site-settings" component={AdminSiteSettings} />
+                          <Route path="/admin/pages" component={AdminPages} />
+                          <Route path="/admin/pages/create" component={CreatePage} />
+                          <Route path="/admin/pages/edit/:id" component={EditPage} />
+                          <Route path="/admin/menus" component={AdminMenus} />
+                          <Route path="/admin/media" component={AdminMedia} />
+                          <Route path="/admin/roles" component={AdminRoles} />
+                          <Route path="/admin/backups" component={AdminBackups} />
+                          <Route path="/admin/seo" component={AdminSEO} />
+                          <Route path="/admin/analytics" component={AdminAnalytics} />
+                          <Route path="/admin/subscribers" component={AdminSubscribers} />
+                          <Route path="/admin/success-stories" component={AdminSuccessStories} />
+                          <Route path="/admin/success-stories/create" component={CreateSuccessStory} />
+                          <Route path="/admin/success-stories/edit/:id" component={EditSuccessStory} />
+                          <Route path="/admin/statistics" component={AdminStatistics} />
+                          <Route path="/admin/statistics/create" component={CreateStatistic} />
+                          <Route path="/admin/statistics/edit/:id" component={EditStatistic} />
+                          <Route path="/admin/partners" component={AdminPartners} />
+                          <Route path="/admin/partners/create" component={CreatePartner} />
+                          <Route path="/admin/partners/edit/:id" component={EditPartner} />
+                          <Route path="/admin/messages" component={AdminMessages} />
+                          <Route path="/admin/temp" component={TempPage} />
+                        </Switch>
+                      </NotificationProvider>
+                    ) : (
                       <Switch>
-                        {/* Admin routes */}
-                        <Route path="/admin/new" component={NewDashboard} />
-                        <Route path="/admin" component={AdminDashboard} />
-                        <Route path="/admin/dashboard" component={AdminDashboard} />
-                        <Route path="/admin/scholarships" component={AdminScholarships} />
-                        <Route path="/admin/scholarships/create" component={CreateScholarship} />
-                        <Route path="/admin/scholarships/edit/:id" component={CreateScholarship} />
-                        <Route path="/admin/categories" component={AdminCategories} />
-                        <Route path="/admin/levels" component={AdminLevels} />
-                        <Route path="/admin/countries" component={AdminCountries} />
-                        <Route path="/admin/posts" component={AdminPosts} />
-                        <Route path="/admin/posts/create" component={CreatePost} />
-                        <Route path="/admin/posts/edit/:id" component={CreatePost} />
-                        <Route path="/admin/users" component={AdminUsers} />
-                        <Route path="/admin/settings" component={AdminSettings} />
-                        <Route path="/admin/settings/general" component={GeneralSettings} />
-                        <Route path="/admin/settings/appearance" component={AppearanceSettings} />
-                        <Route path="/admin/settings/contact" component={ContactSettings} />
-                        <Route path="/admin/settings/social" component={SocialSettings} />
-                        <Route path="/admin/settings/home-sections" component={HomeSectionsSettings} />
-                        <Route path="/admin/site-settings" component={AdminSiteSettings} />
-                        <Route path="/admin/pages" component={AdminPages} />
-                        <Route path="/admin/pages/create" component={CreatePage} />
-                        <Route path="/admin/pages/edit/:id" component={EditPage} />
-                        <Route path="/admin/menus" component={AdminMenus} />
-                        <Route path="/admin/media" component={AdminMedia} />
-                        <Route path="/admin/roles" component={AdminRoles} />
-                        <Route path="/admin/backups" component={AdminBackups} />
-                        <Route path="/admin/seo" component={AdminSEO} />
-                        <Route path="/admin/analytics" component={AdminAnalytics} />
-                        <Route path="/admin/subscribers" component={AdminSubscribers} />
-                        <Route path="/admin/success-stories" component={AdminSuccessStories} />
-                        <Route path="/admin/success-stories/create" component={CreateSuccessStory} />
-                        <Route path="/admin/success-stories/edit/:id" component={EditSuccessStory} />
-                        <Route path="/admin/statistics" component={AdminStatistics} />
-                        <Route path="/admin/statistics/create" component={CreateStatistic} />
-                        <Route path="/admin/statistics/edit/:id" component={EditStatistic} />
-                        <Route path="/admin/partners" component={AdminPartners} />
-                        <Route path="/admin/partners/create" component={CreatePartner} />
-                        <Route path="/admin/partners/edit/:id" component={EditPartner} />
-                        <Route path="/admin/messages" component={AdminMessages} />
-                        <Route path="/admin/temp" component={TempPage} />
+                        {/* صفحة تسجيل الدخول */}
+                        {location === '/admin/login' && (
+                          <Route path="/admin/login" component={AdminLogin} />
+                        )}
+                        
+                        {/* Public routes */}
+                        {!isAdminPage && (
+                          <>
+                            <Route path="/" component={Home} />
+                            <Route path="/scholarships" component={Scholarships} />
+                            <Route path="/scholarships/:slug" component={ScholarshipDetail} />
+                            <Route path="/articles" component={Articles} />
+                            <Route path="/articles/:slug" component={ArticleDetail} />
+
+                            {/* مسارات قصص النجاح */}
+                            <Route path="/success-stories">
+                              {() => (
+                                <Suspense fallback={<div className="flex justify-center items-center min-h-[60vh]">جاري التحميل...</div>}>
+                                  <SuccessStories />
+                                </Suspense>
+                              )}
+                            </Route>
+                            <Route path="/success-stories/:slug">
+                              {() => (
+                                <Suspense fallback={<div className="flex justify-center items-center min-h-[60vh]">جاري التحميل...</div>}>
+                                  <SuccessStoryDetail />
+                                </Suspense>
+                              )}
+                            </Route>
+
+                            {/* مسارات الصفحات العامة */}
+                            <Route path="/page/:slug" component={StaticPage} />
+                            <Route path="/pages/:id" component={PageById} />
+                            <Route path="/:slug" component={StaticPage} />
+                            
+                            {/* Fallback to 404 */}
+                            <Route component={NotFound} />
+                          </>
+                        )}
                       </Switch>
-                    </NotificationProvider>
-                  ) : (
-                    <Switch>
-                      {/* صفحة تسجيل الدخول */}
-                      {location === '/admin/login' && (
-                        <Route path="/admin/login" component={AdminLogin} />
-                      )}
-                      
-                      {/* Public routes */}
-                      {!isAdminPage && (
-                        <>
-                          <Route path="/" component={Home} />
-                          <Route path="/scholarships" component={Scholarships} />
-                          <Route path="/scholarships/:slug" component={ScholarshipDetail} />
-                          <Route path="/articles" component={Articles} />
-                          <Route path="/articles/:slug" component={ArticleDetail} />
-
-                          {/* مسارات قصص النجاح */}
-                          <Route path="/success-stories">
-                            {() => (
-                              <Suspense fallback={<div className="flex justify-center items-center min-h-[60vh]">جاري التحميل...</div>}>
-                                <SuccessStories />
-                              </Suspense>
-                            )}
-                          </Route>
-                          <Route path="/success-stories/:slug">
-                            {() => (
-                              <Suspense fallback={<div className="flex justify-center items-center min-h-[60vh]">جاري التحميل...</div>}>
-                                <SuccessStoryDetail />
-                              </Suspense>
-                            )}
-                          </Route>
-
-                          {/* مسارات الصفحات العامة */}
-                          <Route path="/page/:slug" component={StaticPage} />
-                          <Route path="/pages/:id" component={PageById} />
-                          <Route path="/:slug" component={StaticPage} />
-                          
-                          {/* Fallback to 404 */}
-                          <Route component={NotFound} />
-                        </>
-                      )}
-                    </Switch>
-                  )}
-                  
-                  {!isAdminPage && <Footer />}
-                </TooltipProvider>
-              </FilterOptionsProvider>
-            </SuccessStoriesProvider>
-          </PostsProvider>
-        </ScholarshipsProvider>
-      </SiteSettingsProvider>
-    </AuthProvider>
+                    )}
+                    
+                    {!isAdminPage && <Footer />}
+                  </TooltipProvider>
+                </FilterOptionsProvider>
+              </SuccessStoriesProvider>
+            </PostsProvider>
+          </ScholarshipsProvider>
+        </SiteSettingsProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

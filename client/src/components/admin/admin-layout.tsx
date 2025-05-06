@@ -1,5 +1,4 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { useAuth } from '@/hooks/use-auth';
 import { useLocation } from 'wouter';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import Sidebar from '@/components/admin/sidebar';
@@ -8,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ThemeProvider } from '@/lib/theme-provider';
 import { NotificationProvider } from '@/components/notifications/notification-provider';
+import { useQuery } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -25,16 +26,33 @@ export default function AdminLayout({
   breadcrumbs
 }: AdminLayoutProps) {
   const [location, setLocation] = useLocation();
-  const { user, isLoading } = useAuth();
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
+  // استخدام useQuery بدلاً من useAuth للحصول على بيانات المستخدم
+  const { data: user, isLoading, isError } = useQuery({
+    queryKey: ["/api/auth/me"],
+    queryFn: async () => {
+      try {
+        const response = await apiRequest("GET", "/api/auth/me");
+        if (!response.ok) {
+          throw new Error("غير مصادق عليه");
+        }
+        const data = await response.json();
+        return data.data;
+      } catch (error) {
+        throw new Error("غير مصادق عليه");
+      }
+    },
+    retry: false
+  });
+  
   // إعادة التوجيه إلى صفحة تسجيل الدخول إذا لم يكن المستخدم مسجل الدخول
   useEffect(() => {
-    if (!isLoading && !user) {
-      setLocation('/login');
+    if ((!isLoading && !user) || isError) {
+      setLocation('/admin/login');
     }
-  }, [user, isLoading, setLocation]);
+  }, [user, isLoading, isError, setLocation]);
 
   // إغلاق السايدبار عند النقر خارجه على الجوال
   useEffect(() => {
