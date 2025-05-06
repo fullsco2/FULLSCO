@@ -3,11 +3,23 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from '@/shared/schema';
 
-// استخدام متغير بيئي للاتصال بقاعدة البيانات
-const connectionString = process.env.DATABASE_URL || 'postgres://user:password@localhost:5432/fullsco';
-
-// تأسيس عميل postgres
+// إنشاء اتصال قاعدة البيانات
+const connectionString = process.env.DATABASE_URL || '';
 const client = postgres(connectionString);
 
-// تهيئة درزل مع الاتصال والمخطط
+// إنشاء مثيل لقاعدة البيانات باستخدام Drizzle ORM
 export const db = drizzle(client, { schema });
+
+// تأكد من إغلاق الاتصال عند انتهاء التطبيق (في بيئة الإنتاج)
+if (process.env.NODE_ENV === 'production') {
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM signal received: closing database connection');
+    client.end().then(() => {
+      console.log('Database connection closed');
+      process.exit(0);
+    });
+  });
+}
+
+// تصدير الاتصال لاستخدامه في أجزاء أخرى من التطبيق
+export { client };

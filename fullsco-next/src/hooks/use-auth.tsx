@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
-import { useQuery, useMutation, UseMutationResult } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { User } from '@/types/user';
 import { useToast } from '@/hooks/use-toast';
 
@@ -9,9 +9,9 @@ type AuthContextType = {
   user: User | null;
   isLoading: boolean;
   error: Error | null;
-  loginMutation: UseMutationResult<User, Error, LoginData>;
-  logoutMutation: UseMutationResult<void, Error, void>;
-  registerMutation: UseMutationResult<User, Error, RegisterData>;
+  loginMutation: ReturnType<typeof useLoginMutation>;
+  logoutMutation: ReturnType<typeof useLogoutMutation>;
+  registerMutation: ReturnType<typeof useRegisterMutation>;
 };
 
 type LoginData = {
@@ -27,41 +27,11 @@ type RegisterData = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+// Custom hook for login mutation
+function useLoginMutation() {
   const { toast } = useToast();
-  const [mounted, setMounted] = useState(false);
-  
-  // التأكد من أن الكود ينفذ فقط على جانب العميل
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const {
-    data: user,
-    error,
-    isLoading,
-    refetch,
-  } = useQuery<User>(
-    ['user'],
-    async () => {
-      const res = await fetch('/api/user');
-      if (!res.ok) {
-        if (res.status === 401) {
-          return null;
-        }
-        throw new Error(`خطأ في جلب بيانات المستخدم: ${res.status}`);
-      }
-      return res.json();
-    },
-    {
-      enabled: mounted, // فقط قم بالاستعلام إذا كان مثبتًا (على جانب العميل)
-      retry: false, // لا تعيد المحاولة لأن 401 هو وضع صحيح لعدم وجود مستخدم مسجل دخوله
-      refetchOnWindowFocus: false, // لا تقم بإعادة الاستعلام عند التركيز على النافذة
-    }
-  );
-
-  const loginMutation = useMutation<User, Error, LoginData>(
-    async (credentials) => {
+  return useMutation({
+    mutationFn: async (credentials: LoginData) => {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: {
@@ -75,29 +45,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(errorData.message || 'خطأ في تسجيل الدخول');
       }
 
-      return res.json();
+      return res.json() as Promise<User>;
     },
-    {
-      onSuccess: () => {
-        toast({
-          title: 'تم تسجيل الدخول بنجاح',
-          description: 'مرحباً بك مرة أخرى!',
-          variant: 'default',
-        });
-        refetch(); // إعادة جلب بيانات المستخدم
-      },
-      onError: (error) => {
-        toast({
-          title: 'خطأ في تسجيل الدخول',
-          description: error.message,
-          variant: 'destructive',
-        });
-      },
-    }
-  );
+    onSuccess: (data) => {
+      toast({
+        title: 'تم تسجيل الدخول بنجاح',
+        description: 'مرحباً بك مرة أخرى!',
+        variant: 'default',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'خطأ في تسجيل الدخول',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
 
-  const registerMutation = useMutation<User, Error, RegisterData>(
-    async (userData) => {
+// Custom hook for registration mutation
+function useRegisterMutation() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (userData: RegisterData) => {
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: {
@@ -111,29 +82,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(errorData.message || 'خطأ في إنشاء الحساب');
       }
 
-      return res.json();
+      return res.json() as Promise<User>;
     },
-    {
-      onSuccess: () => {
-        toast({
-          title: 'تم إنشاء الحساب بنجاح',
-          description: 'مرحباً بك في منصة فولسكو!',
-          variant: 'default',
-        });
-        refetch(); // إعادة جلب بيانات المستخدم
-      },
-      onError: (error) => {
-        toast({
-          title: 'خطأ في إنشاء الحساب',
-          description: error.message,
-          variant: 'destructive',
-        });
-      },
-    }
-  );
+    onSuccess: (data) => {
+      toast({
+        title: 'تم إنشاء الحساب بنجاح',
+        description: 'مرحباً بك في منصة فولسكو!',
+        variant: 'default',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'خطأ في إنشاء الحساب',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
 
-  const logoutMutation = useMutation<void, Error, void>(
-    async () => {
+// Custom hook for logout mutation
+function useLogoutMutation() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async () => {
       const res = await fetch('/api/logout', {
         method: 'POST',
       });
@@ -142,24 +114,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('خطأ في تسجيل الخروج');
       }
     },
-    {
-      onSuccess: () => {
-        toast({
-          title: 'تم تسجيل الخروج بنجاح',
-          description: 'نراك قريباً!',
-          variant: 'default',
-        });
-        refetch(); // إعادة جلب بيانات المستخدم (سيعود null)
-      },
-      onError: (error) => {
-        toast({
-          title: 'خطأ في تسجيل الخروج',
-          description: error.message,
-          variant: 'destructive',
-        });
-      },
+    onSuccess: () => {
+      toast({
+        title: 'تم تسجيل الخروج بنجاح',
+        description: 'نراك قريباً!',
+        variant: 'default',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'خطأ في تسجيل الخروج',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  
+  // التأكد من أن الكود ينفذ فقط على جانب العميل
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const {
+    data: user,
+    error,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ['user'],
+    queryFn: async () => {
+      const res = await fetch('/api/user');
+      if (!res.ok) {
+        if (res.status === 401) {
+          return null;
+        }
+        throw new Error(`خطأ في جلب بيانات المستخدم: ${res.status}`);
+      }
+      return res.json() as Promise<User>;
+    },
+    enabled: mounted, // فقط قم بالاستعلام إذا كان مثبتًا (على جانب العميل)
+    retry: false, // لا تعيد المحاولة لأن 401 هو وضع صحيح لعدم وجود مستخدم مسجل دخوله
+    refetchOnWindowFocus: false, // لا تقم بإعادة الاستعلام عند التركيز على النافذة
+  });
+
+  const loginMutation = useLoginMutation();
+  const registerMutation = useRegisterMutation();
+  const logoutMutation = useLogoutMutation();
+
+  // تحديث بيانات المستخدم بعد العمليات
+  useEffect(() => {
+    // إعادة جلب بيانات المستخدم بعد العمليات الناجحة
+    if (loginMutation.isSuccess || registerMutation.isSuccess || logoutMutation.isSuccess) {
+      refetch();
     }
-  );
+  }, [loginMutation.isSuccess, registerMutation.isSuccess, logoutMutation.isSuccess, refetch]);
 
   return (
     <AuthContext.Provider
