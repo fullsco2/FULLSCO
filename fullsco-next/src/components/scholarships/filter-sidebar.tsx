@@ -1,251 +1,289 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { Filter, Sliders, X, Check } from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Search, Loader2 } from 'lucide-react';
 
-interface Category {
+type FilterParams = {
+  country?: string;
+  level?: string;
+  category?: string;
+  query?: string;
+  funded?: boolean;
+  page?: number;
+};
+
+type Country = {
   id: number;
   name: string;
   slug: string;
-}
+};
 
-interface Level {
+type Level = {
   id: number;
   name: string;
   slug: string;
-}
+};
 
-interface Country {
+type Category = {
   id: number;
   name: string;
   slug: string;
-  flag?: string;
-}
+};
 
-interface FilterSidebarProps {
-  initialFilters?: {
-    country?: string;
-    level?: string;
-    category?: string;
-    funded?: string;
-  };
-}
+type FilterSidebarProps = {
+  activeFilters: FilterParams;
+};
 
-export default function FilterSidebar({ initialFilters = {} }: FilterSidebarProps) {
+export function FilterSidebar({ activeFilters }: FilterSidebarProps) {
   const router = useRouter();
-  const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  
-  // حالة الفلتر
-  const [selectedCountry, setSelectedCountry] = useState<string | undefined>(initialFilters.country);
-  const [selectedLevel, setSelectedLevel] = useState<string | undefined>(initialFilters.level);
-  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(initialFilters.category);
-  const [isFunded, setIsFunded] = useState<boolean>(initialFilters.funded === 'true');
-  
-  // بيانات الفلتر
+  const searchParams = useSearchParams();
+
+  const [query, setQuery] = useState(activeFilters.query || '');
   const [countries, setCountries] = useState<Country[]>([]);
   const [levels, setLevels] = useState<Level[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isFullyFunded, setIsFullyFunded] = useState(activeFilters.funded || false);
+  const [isLoadingCountries, setIsLoadingCountries] = useState(true);
+  const [isLoadingLevels, setIsLoadingLevels] = useState(true);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
 
+  // Fetch filter data
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // جلب بيانات الفلتر
-  useEffect(() => {
-    const fetchFilterData = async () => {
+    const fetchCountries = async () => {
       try {
-        const [countriesRes, levelsRes, categoriesRes] = await Promise.all([
-          fetch('/api/countries').then(res => res.json()),
-          fetch('/api/levels').then(res => res.json()),
-          fetch('/api/categories').then(res => res.json()),
-        ]);
-        
-        setCountries(countriesRes);
-        setLevels(levelsRes);
-        setCategories(categoriesRes);
+        setIsLoadingCountries(true);
+        const response = await fetch('/api/countries');
+        if (!response.ok) throw new Error('Failed to fetch countries');
+        const data = await response.json();
+        setCountries(data);
       } catch (error) {
-        console.error('Error fetching filter data:', error);
+        console.error('Error fetching countries:', error);
       } finally {
-        setLoading(false);
+        setIsLoadingCountries(false);
       }
     };
-    
-    fetchFilterData();
+
+    const fetchLevels = async () => {
+      try {
+        setIsLoadingLevels(true);
+        const response = await fetch('/api/levels');
+        if (!response.ok) throw new Error('Failed to fetch levels');
+        const data = await response.json();
+        setLevels(data);
+      } catch (error) {
+        console.error('Error fetching levels:', error);
+      } finally {
+        setIsLoadingLevels(false);
+      }
+    };
+
+    const fetchCategories = async () => {
+      try {
+        setIsLoadingCategories(true);
+        const response = await fetch('/api/categories');
+        if (!response.ok) throw new Error('Failed to fetch categories');
+        const data = await response.json();
+        setCategories(data);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    };
+
+    fetchCountries();
+    fetchLevels();
+    fetchCategories();
   }, []);
 
-  // تطبيق الفلاتر
-  const applyFilters = () => {
-    const params = new URLSearchParams();
-    
-    if (selectedCountry) params.set('country', selectedCountry);
-    if (selectedLevel) params.set('level', selectedLevel);
-    if (selectedCategory) params.set('category', selectedCategory);
-    if (isFunded) params.set('funded', 'true');
-    
-    const queryString = params.toString();
-    router.push(`${pathname}${queryString ? `?${queryString}` : ''}`);
-    
-    if (isMobile) {
-      setIsOpen(false);
-    }
+  // Set initial values from activeFilters
+  useEffect(() => {
+    setQuery(activeFilters.query || '');
+    setIsFullyFunded(activeFilters.funded || false);
+  }, [activeFilters]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    applyFilters({ ...activeFilters, query, page: 1 });
   };
 
-  // إعادة تعيين الفلاتر
-  const resetFilters = () => {
-    setSelectedCountry(undefined);
-    setSelectedLevel(undefined);
-    setSelectedCategory(undefined);
-    setIsFunded(false);
-    router.push(pathname);
+  const handleCountryFilter = (slug: string) => {
+    applyFilters({ ...activeFilters, country: slug, page: 1 });
+  };
+
+  const handleLevelFilter = (slug: string) => {
+    applyFilters({ ...activeFilters, level: slug, page: 1 });
+  };
+
+  const handleCategoryFilter = (slug: string) => {
+    applyFilters({ ...activeFilters, category: slug, page: 1 });
+  };
+
+  const handleFullyFundedFilter = (checked: boolean) => {
+    setIsFullyFunded(checked);
+    applyFilters({ ...activeFilters, funded: checked, page: 1 });
+  };
+
+  const applyFilters = (filters: FilterParams) => {
+    const params = new URLSearchParams(searchParams.toString());
     
-    if (isMobile) {
-      setIsOpen(false);
+    // Reset page to 1 when applying new filters
+    params.set('page', '1');
+    
+    // Apply or remove filters based on their values
+    if (filters.query) params.set('query', filters.query);
+    else params.delete('query');
+    
+    if (filters.country) params.set('country', filters.country);
+    else params.delete('country');
+    
+    if (filters.level) params.set('level', filters.level);
+    else params.delete('level');
+    
+    if (filters.category) params.set('category', filters.category);
+    else params.delete('category');
+    
+    if (filters.funded) params.set('funded', 'true');
+    else params.delete('funded');
+    
+    router.push(`/scholarships?${params.toString()}`);
+  };
+
+  const isActiveFilter = (type: string, slug: string) => {
+    switch (type) {
+      case 'country':
+        return activeFilters.country === slug;
+      case 'level':
+        return activeFilters.level === slug;
+      case 'category':
+        return activeFilters.category === slug;
+      default:
+        return false;
     }
   };
 
   return (
-    <>
-      {/* زر فتح الفلتر للجوال */}
-      {isMobile && (
-        <div className="fixed bottom-4 right-4 z-40">
-          <Button 
-            onClick={() => setIsOpen(true)} 
-            size="lg" 
-            className="flex items-center gap-2 rounded-full shadow-lg bg-primary hover:bg-primary/90"
-          >
-            <Filter className="h-5 w-5" />
-            <span>الفلتر</span>
-          </Button>
+    <div className="bg-card rounded-lg p-4 border">
+      <h3 className="font-medium text-lg mb-4">تصفية المنح</h3>
+      
+      {/* Search */}
+      <form onSubmit={handleSearch} className="mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="بحث"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="pl-10 pr-4"
+          />
         </div>
-      )}
+        <Button type="submit" className="w-full mt-2">بحث</Button>
+      </form>
 
-      {/* الصندوق الجانبي للفلتر */}
-      <div 
-        className={`${isMobile ? 'fixed inset-0 z-50 bg-black bg-opacity-50' : ''} ${isMobile && !isOpen ? 'hidden' : ''}`}
-        onClick={isMobile ? () => setIsOpen(false) : undefined}
-      >
-        <aside 
-          className={`w-full md:w-72 p-4 md:p-6 bg-white dark:bg-gray-900 shadow-lg overflow-y-auto ${isMobile ? 'fixed bottom-0 right-0 left-0 z-50 rounded-t-2xl max-h-[90vh]' : 'sticky top-20 rounded-xl border border-gray-200 dark:border-gray-800'}`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <Sliders className="h-5 w-5" />
-              خيارات البحث
-            </h2>
-            {isMobile && (
-              <Button size="icon" variant="ghost" onClick={() => setIsOpen(false)}>
-                <X className="h-5 w-5" />
-              </Button>
-            )}
-          </div>
-
-          {loading ? (
-            <div className="space-y-4">
-              {Array.from({ length: 10 }).map((_, index) => (
-                <div key={index} className="animate-pulse">
-                  <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-2/3 mb-2"></div>
-                  <div className="h-8 bg-gray-200 dark:bg-gray-800 rounded"></div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* الدول */}
-              <div className="space-y-2">
-                <h3 className="font-medium text-lg">الدولة</h3>
-                <select
-                  className="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800"
-                  value={selectedCountry || ''}
-                  onChange={(e) => setSelectedCountry(e.target.value || undefined)}
-                >
-                  <option value="">جميع الدول</option>
-                  {countries.map((country) => (
-                    <option key={country.id} value={country.slug}>
-                      {country.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* المستوى الدراسي */}
-              <div className="space-y-2">
-                <h3 className="font-medium text-lg">المستوى الدراسي</h3>
-                <div className="grid grid-cols-1 gap-2">
-                  <select
-                    className="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800"
-                    value={selectedLevel || ''}
-                    onChange={(e) => setSelectedLevel(e.target.value || undefined)}
-                  >
-                    <option value="">جميع المستويات</option>
-                    {levels.map((level) => (
-                      <option key={level.id} value={level.slug}>
-                        {level.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* التخصص */}
-              <div className="space-y-2">
-                <h3 className="font-medium text-lg">التخصص</h3>
-                <select
-                  className="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800"
-                  value={selectedCategory || ''}
-                  onChange={(e) => setSelectedCategory(e.target.value || undefined)}
-                >
-                  <option value="">جميع التخصصات</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.slug}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* خيارات التمويل */}
-              <div className="space-y-2">
-                <h3 className="font-medium text-lg">خيارات التمويل</h3>
-                <label className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer p-2 border border-gray-300 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                  <div className="h-5 w-5 rounded-sm border border-primary flex items-center justify-center">
-                    {isFunded && <Check className="h-4 w-4 text-primary" />}
-                  </div>
-                  <span onClick={() => setIsFunded(!isFunded)} className="select-none">تمويل كامل فقط</span>
-                </label>
-              </div>
-
-              {/* أزرار العمليات */}
-              <div className="flex gap-2 pt-4">
-                <Button 
-                  onClick={applyFilters}
-                  className="flex-1 bg-primary hover:bg-primary/90"
-                >
-                  تطبيق
-                </Button>
-                <Button 
-                  onClick={resetFilters}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  إعادة تعيين
-                </Button>
-              </div>
-            </div>
-          )}
-        </aside>
+      {/* Fully Funded Checkbox */}
+      <div className="mb-6">
+        <div className="flex items-center space-x-2 space-x-reverse">
+          <Checkbox 
+            id="fully-funded" 
+            checked={isFullyFunded}
+            onCheckedChange={handleFullyFundedFilter}
+          />
+          <Label htmlFor="fully-funded" className="mr-2">تمويل كامل فقط</Label>
+        </div>
       </div>
-    </>
+      
+      <Accordion type="multiple" defaultValue={['countries', 'levels', 'categories']} className="space-y-2">
+        {/* Countries */}
+        <AccordionItem value="countries" className="border-b-0">
+          <AccordionTrigger className="py-3 hover:no-underline">
+            <span className="font-medium">البلدان</span>
+          </AccordionTrigger>
+          <AccordionContent>
+            {isLoadingCountries ? (
+              <div className="flex justify-center py-2">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2">
+                {countries.map((country) => (
+                  <div key={country.id} className="flex items-center">
+                    <Button
+                      variant={isActiveFilter('country', country.slug) ? "secondary" : "ghost"}
+                      className="w-full justify-start text-sm h-auto py-1.5 font-normal hover:bg-muted"
+                      onClick={() => handleCountryFilter(country.slug)}
+                    >
+                      {country.name}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Levels */}
+        <AccordionItem value="levels" className="border-b-0">
+          <AccordionTrigger className="py-3 hover:no-underline">
+            <span className="font-medium">المستوى الدراسي</span>
+          </AccordionTrigger>
+          <AccordionContent>
+            {isLoadingLevels ? (
+              <div className="flex justify-center py-2">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {levels.map((level) => (
+                  <div key={level.id} className="flex items-center">
+                    <Button
+                      variant={isActiveFilter('level', level.slug) ? "secondary" : "ghost"}
+                      className="w-full justify-start text-sm h-auto py-1.5 font-normal hover:bg-muted"
+                      onClick={() => handleLevelFilter(level.slug)}
+                    >
+                      {level.name}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Categories */}
+        <AccordionItem value="categories" className="border-b-0">
+          <AccordionTrigger className="py-3 hover:no-underline">
+            <span className="font-medium">التخصصات</span>
+          </AccordionTrigger>
+          <AccordionContent>
+            {isLoadingCategories ? (
+              <div className="flex justify-center py-2">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2">
+                {categories.map((category) => (
+                  <div key={category.id} className="flex items-center">
+                    <Button
+                      variant={isActiveFilter('category', category.slug) ? "secondary" : "ghost"}
+                      className="w-full justify-start text-sm h-auto py-1.5 font-normal hover:bg-muted"
+                      onClick={() => handleCategoryFilter(category.slug)}
+                    >
+                      {category.name}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </div>
   );
 }

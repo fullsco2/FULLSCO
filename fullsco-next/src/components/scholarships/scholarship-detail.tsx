@@ -1,361 +1,358 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Calendar, Globe, GraduationCap, Award, ExternalLink, Clock, ChevronRight, Share2, Bookmark, Printer } from 'lucide-react';
+import Image from 'next/image';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { TypographyH1, TypographyH2, TypographyP } from '@/components/ui/typography';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
+import { Calendar, GraduationCap, Building, MapPin, Globe, User, CheckCircle2, School, AlertCircle, Share2, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
-interface ScholarshipDetailProps {
+type ScholarshipDetailProps = {
   slug: string;
-}
+};
 
-export default function ScholarshipDetail({ slug }: ScholarshipDetailProps) {
+type Scholarship = {
+  id: number;
+  title: string;
+  description: string;
+  excerpt?: string;
+  slug: string;
+  deadline: string;
+  createdAt: string;
+  updatedAt: string;
+  thumbnailUrl?: string;
+  applyUrl?: string;
+  requirements?: string;
+  benefits?: string;
+  categoryName?: string;
+  categoryId?: number;
+  countryName?: string;
+  countryId?: number;
+  university?: string;
+  degree?: string;
+  isFullyFunded?: boolean;
+  isFeatured?: boolean;
+};
+
+export function ScholarshipDetail({ slug }: ScholarshipDetailProps) {
   const router = useRouter();
-  const [scholarship, setScholarship] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const pathname = usePathname();
   
+  const [scholarship, setScholarship] = useState<Scholarship | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('overview');
+
   useEffect(() => {
     const fetchScholarship = async () => {
       try {
-        setLoading(true);
+        setIsLoading(true);
         setError(null);
-        
-        // جلب بيانات المنحة الدراسية من API الحالي
+
         const response = await fetch(`/api/scholarships/${slug}`);
         if (!response.ok) {
-          throw new Error(`فشل جلب بيانات المنحة: ${response.status}`);
+          if (response.status === 404) {
+            throw new Error('\u0627\u0644\u0645\u0646\u062d\u0629 \u0627\u0644\u062f\u0631\u0627\u0633\u064a\u0629 \u063a\u064a\u0631 \u0645\u0648\u062c\u0648\u062f\u0629');
+          }
+          throw new Error(`\u062e\u0637\u0623 \u0641\u064a \u062c\u0644\u0628 \u0627\u0644\u0645\u0646\u062d\u0629 \u0627\u0644\u062f\u0631\u0627\u0633\u064a\u0629: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        // التعامل مع هيكل البيانات من API الحالي
-        setScholarship(data.data || data);
-      } catch (err) {
-        console.error('Error fetching scholarship details:', err);
-        setError(err instanceof Error ? err.message : 'حدث خطأ أثناء جلب بيانات المنحة');
+        setScholarship(data);
+      } catch (error) {
+        console.error('Error fetching scholarship:', error);
+        setError(error instanceof Error ? error.message : '\u062d\u062f\u062b \u062e\u0637\u0623 \u063a\u064a\u0631 \u0645\u0639\u0631\u0648\u0641');
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
-    
-    fetchScholarship();
+
+    if (slug) {
+      fetchScholarship();
+    }
   }, [slug]);
 
-  // التحقق من موعد انتهاء التقديم
-  const isDeadlinePassed = scholarship?.deadline 
-    ? new Date(scholarship.deadline) < new Date() 
-    : false;
-  
-  // مشاركة المنحة
-  const shareScholarship = () => {
-    if (typeof window !== 'undefined' && navigator.share) {
-      navigator.share({
-        title: scholarship?.title || 'منحة دراسية',
-        text: scholarship?.description?.slice(0, 100) || '',
-        url: window.location.href
-      }).catch(err => console.error('Error sharing:', err));
-    } else {
-      // نسخ الرابط إلى الحافظة
-      navigator.clipboard.writeText(window.location.href)
-        .then(() => alert('تم نسخ الرابط'))
-        .catch(err => console.error('Error copying link:', err));
+  // يتعامل مع مشاركة المنحة الدراسية
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: scholarship?.title || '\u0645\u0646\u062d\u0629 \u062f\u0631\u0627\u0633\u064a\u0629',
+          text: scholarship?.excerpt || '\u0627\u0643\u062a\u0634\u0641 \u0647\u0630\u0647 \u0627\u0644\u0645\u0646\u062d\u0629 \u0627\u0644\u062f\u0631\u0627\u0633\u064a\u0629',
+          url: window.location.href,
+        });
+      } else {
+        // نسخ الرابط إلى الحافظة إذا كانت واجهة المشاركة غير متوفرة
+        await navigator.clipboard.writeText(window.location.href);
+        alert('\u062a\u0645 \u0646\u0633\u062e \u0627\u0644\u0631\u0627\u0628\u0637 \u0625\u0644\u0649 \u0627\u0644\u062d\u0627\u0641\u0638\u0629');
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
     }
   };
-  
-  // طباعة المنحة
-  const printScholarship = () => {
-    window.print();
+
+  // يعود للصفحة السابقة
+  const handleBack = () => {
+    router.back();
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-          <p className="mt-4 text-lg">جاري تحميل بيانات المنحة...</p>
-        </div>
+      <div className="container py-12 flex flex-col items-center justify-center min-h-[50vh]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg">\u062c\u0627\u0631\u064a \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0645\u0646\u062d\u0629 \u0627\u0644\u062f\u0631\u0627\u0633\u064a\u0629...</p>
       </div>
     );
   }
 
-  if (error || !scholarship) {
+  if (error) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-12 text-center sm:px-6 lg:px-8">
-        <div className="rounded-lg border border-red-200 bg-red-50 p-6 dark:border-red-800 dark:bg-red-900/20">
-          <h2 className="mb-4 text-xl font-bold text-red-700 dark:text-red-400">لم يتم العثور على المنحة الدراسية</h2>
-          <p className="mb-4 text-red-600 dark:text-red-300">{error || 'لم يتم العثور على المنحة المطلوبة. ربما تم حذفها أو نقلها.'}</p>
-          <div className="flex justify-center gap-3">
-            <Button variant="outline" onClick={() => router.back()}>
-              العودة للصفحة السابقة
-            </Button>
-            <Link href="/scholarships">
-              <Button>عرض جميع المنح</Button>
-            </Link>
-          </div>
-        </div>
+      <div className="container py-12 flex flex-col items-center justify-center min-h-[50vh] text-center">
+        <AlertCircle className="h-16 w-16 text-destructive mb-4" />
+        <h2 className="text-2xl font-bold mb-2">\u062d\u062f\u062b \u062e\u0637\u0623</h2>
+        <p className="text-muted-foreground mb-6">{error}</p>
+        <Button onClick={handleBack} variant="outline">
+          <ArrowRight className="ml-2 h-4 w-4" />
+          \u0627\u0644\u0639\u0648\u062f\u0629 \u0644\u0644\u0645\u0646\u062d \u0627\u0644\u062f\u0631\u0627\u0633\u064a\u0629
+        </Button>
       </div>
     );
   }
+
+  if (!scholarship) {
+    return (
+      <div className="container py-12 flex flex-col items-center justify-center min-h-[50vh] text-center">
+        <AlertCircle className="h-16 w-16 text-destructive mb-4" />
+        <h2 className="text-2xl font-bold mb-2">\u0644\u0645 \u064a\u062a\u0645 \u0627\u0644\u0639\u062b\u0648\u0631 \u0639\u0644\u0649 \u0627\u0644\u0645\u0646\u062d\u0629</h2>
+        <p className="text-muted-foreground mb-6">\u0644\u0645 \u064a\u062a\u0645 \u0627\u0644\u0639\u062b\u0648\u0631 \u0639\u0644\u0649 \u0627\u0644\u0645\u0646\u062d\u0629 \u0627\u0644\u062f\u0631\u0627\u0633\u064a\u0629 \u0627\u0644\u0645\u0637\u0644\u0648\u0628\u0629</p>
+        <Button onClick={handleBack} variant="outline">
+          <ArrowRight className="ml-2 h-4 w-4" />
+          \u0627\u0644\u0639\u0648\u062f\u0629 \u0644\u0644\u0645\u0646\u062d \u0627\u0644\u062f\u0631\u0627\u0633\u064a\u0629
+        </Button>
+      </div>
+    );
+  }
+
+  const {
+    title,
+    description,
+    excerpt,
+    deadline,
+    thumbnailUrl,
+    applyUrl,
+    requirements,
+    benefits,
+    categoryName,
+    countryName,
+    university,
+    degree,
+    isFullyFunded,
+    createdAt,
+    updatedAt,
+  } = scholarship;
+
+  const formattedDeadline = formatDate(deadline);
+  const formattedCreatedAt = formatDate(createdAt);
+  const formattedUpdatedAt = formatDate(updatedAt);
+  
+  // تحديد الصورة المناسبة للمنحة
+  const imageUrl = thumbnailUrl || '/images/placeholder-scholarship.jpg';
 
   return (
-    <div className="scholarship-detail-container pb-12">
-      {/* التنقل الفرعي */}
-      <div className="bg-gray-50 dark:bg-gray-900 py-2 mb-6">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex text-sm">
-            <Link href="/" className="text-gray-500 hover:text-primary transition-colors">
-              الرئيسية
-            </Link>
-            <ChevronRight className="mx-2 h-4 w-4 text-gray-400" />
-            <Link href="/scholarships" className="text-gray-500 hover:text-primary transition-colors">
-              المنح الدراسية
-            </Link>
-            <ChevronRight className="mx-2 h-4 w-4 text-gray-400" />
-            <span className="text-primary">{scholarship.title}</span>
-          </nav>
-        </div>
+    <div className="container px-4 md:px-6 py-8 md:py-12">
+      {/* شريط الملاحة الثانوي */}
+      <div className="flex items-center justify-between mb-8">
+        <button
+          onClick={handleBack}
+          className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowRight className="ml-1 h-4 w-4" />
+          \u0627\u0644\u0639\u0648\u062f\u0629
+        </button>
+        
+        <button
+          onClick={handleShare}
+          className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Share2 className="ml-1 h-4 w-4" />
+          \u0645\u0634\u0627\u0631\u0643\u0629
+        </button>
       </div>
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* تفاصيل المنحة */}
-          <div className="lg:col-span-2">
-            {/* عنوان المنحة */}
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-800 dark:text-white md:text-3xl">
-                {scholarship.title}
-              </h1>
-              
-              {/* معلومات أساسية */}
-              <div className="mt-4 flex flex-wrap gap-4 text-sm">
-                {scholarship.university && (
-                  <div className="flex items-center text-gray-600 dark:text-gray-300">
-                    <Award className="ml-1.5 h-4 w-4 text-primary" />
-                    <span>{scholarship.university}</span>
-                  </div>
-                )}
-                
-                {scholarship.country && (
-                  <div className="flex items-center text-gray-600 dark:text-gray-300">
-                    <Globe className="ml-1.5 h-4 w-4 text-primary" />
-                    <span>{typeof scholarship.country === 'object' ? scholarship.country.name : scholarship.country}</span>
-                  </div>
-                )}
-                
-                {scholarship.level && (
-                  <div className="flex items-center text-gray-600 dark:text-gray-300">
-                    <GraduationCap className="ml-1.5 h-4 w-4 text-primary" />
-                    <span>{typeof scholarship.level === 'object' ? scholarship.level.name : scholarship.level}</span>
-                  </div>
-                )}
-                
-                {scholarship.deadline && (
-                  <div className="flex items-center text-gray-600 dark:text-gray-300">
-                    <Calendar className="ml-1.5 h-4 w-4 text-primary" />
-                    <span className={isDeadlinePassed ? 'text-red-500 dark:text-red-400' : ''}>
-                      {isDeadlinePassed ? 'انتهى التقديم: ' : 'آخر موعد: '}
-                      {formatDate(new Date(scholarship.deadline))}
-                    </span>
-                  </div>
-                )}
-                
-                {scholarship.createdAt && (
-                  <div className="flex items-center text-gray-600 dark:text-gray-300">
-                    <Clock className="ml-1.5 h-4 w-4 text-primary" />
-                    <span>تاريخ النشر: {formatDate(new Date(scholarship.createdAt))}</span>
-                  </div>
-                )}
-              </div>
-              
-              {/* علامات */}
-              <div className="mt-4 flex flex-wrap gap-2">
-                {scholarship.funded && (
-                  <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800 dark:bg-green-800/30 dark:text-green-300">
-                    تمويل كامل
-                  </span>
-                )}
-                
-                {scholarship.featured && (
-                  <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300">
-                    منحة مميزة
-                  </span>
-                )}
-                
-                {scholarship.category && (
-                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary dark:bg-primary/20">
-                    {typeof scholarship.category === 'object' ? scholarship.category.name : scholarship.category}
-                  </span>
-                )}
-              </div>
-            </div>
-            
-            {/* صورة المنحة */}
-            {scholarship.thumbnail && (
-              <div className="mb-8 overflow-hidden rounded-lg">
-                <img 
-                  src={scholarship.thumbnail} 
-                  alt={scholarship.title} 
-                  className="h-auto w-full object-cover"
-                />
-              </div>
-            )}
-            
-            {/* وصف المنحة */}
-            <div className="mb-8">
-              <h2 className="mb-4 text-xl font-bold">وصف المنحة</h2>
-              <div className="prose max-w-none dark:prose-invert">
-                {/* إذا كان الوصف يحتوي على HTML */}
-                {scholarship.description && typeof scholarship.description === 'string' ? (
-                  scholarship.description.includes('<') ? (
-                    <div dangerouslySetInnerHTML={{ __html: scholarship.description }} />
-                  ) : (
-                    <p>{scholarship.description}</p>
-                  )
-                ) : (
-                  <p>لا يوجد وصف متاح لهذه المنحة.</p>
-                )}
-              </div>
-            </div>
-            
-            {/* متطلبات المنحة */}
-            {scholarship.requirements && (
-              <div className="mb-8">
-                <h2 className="mb-4 text-xl font-bold">متطلبات التقديم</h2>
-                <div className="prose max-w-none dark:prose-invert">
-                  {typeof scholarship.requirements === 'string' ? (
-                    scholarship.requirements.includes('<') ? (
-                      <div dangerouslySetInnerHTML={{ __html: scholarship.requirements }} />
-                    ) : (
-                      <p>{scholarship.requirements}</p>
-                    )
-                  ) : (
-                    <p>لا توجد متطلبات محددة لهذه المنحة.</p>
-                  )}
-                </div>
-              </div>
-            )}
-            
-            {/* معلومات إضافية */}
-            {scholarship.additionalInfo && (
-              <div className="mb-8">
-                <h2 className="mb-4 text-xl font-bold">معلومات إضافية</h2>
-                <div className="prose max-w-none dark:prose-invert">
-                  {typeof scholarship.additionalInfo === 'string' ? (
-                    scholarship.additionalInfo.includes('<') ? (
-                      <div dangerouslySetInnerHTML={{ __html: scholarship.additionalInfo }} />
-                    ) : (
-                      <p>{scholarship.additionalInfo}</p>
-                    )
-                  ) : null}
-                </div>
-              </div>
-            )}
-            
-            {/* أزرار العمليات */}
-            <div className="mt-8 flex flex-wrap gap-3">
-              {scholarship.url && (
-                <a href={scholarship.url} target="_blank" rel="noopener noreferrer" className="flex-1 sm:flex-none">
-                  <Button 
-                    className="w-full bg-primary hover:bg-primary/90 sm:w-auto" 
-                    disabled={isDeadlinePassed}
-                  >
-                    <ExternalLink className="ml-2 h-4 w-4" />
-                    {isDeadlinePassed ? 'انتهى التقديم' : 'التقديم للمنحة'}
-                  </Button>
-                </a>
+      {/* القسم الرئيسي */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* المحتوى الرئيسي */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* العنوان والمعلومات الأساسية */}
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              {isFullyFunded && (
+                <Badge variant="secondary" className="bg-green-600 hover:bg-green-700 text-white">
+                  \u062a\u0645\u0648\u064a\u0644 \u0643\u0627\u0645\u0644
+                </Badge>
               )}
               
-              <Button variant="outline" onClick={shareScholarship} className="flex-1 sm:flex-none sm:w-auto">
-                <Share2 className="ml-2 h-4 w-4" />
-                مشاركة
-              </Button>
+              {categoryName && (
+                <Badge variant="outline">{categoryName}</Badge>
+              )}
+            </div>
+            
+            <TypographyH1 className="mb-4">{title}</TypographyH1>
+            
+            {excerpt && (
+              <TypographyP className="text-lg text-muted-foreground mb-6">
+                {excerpt}
+              </TypographyP>
+            )}
+          </div>
+
+          {/* صورة المنحة */}
+          <div className="rounded-lg overflow-hidden border relative aspect-video">
+            <Image
+              src={imageUrl}
+              alt={title}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            />
+          </div>
+
+          {/* تبويبات المحتوى */}
+          <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="overview">\u0646\u0638\u0631\u0629 \u0639\u0627\u0645\u0629</TabsTrigger>
+              <TabsTrigger value="requirements">\u0645\u062a\u0637\u0644\u0628\u0627\u062a</TabsTrigger>
+              <TabsTrigger value="benefits">\u0627\u0644\u0645\u0632\u0627\u064a\u0627</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="overview" className="space-y-6 py-4">
+              <div className="prose prose-lg prose-stone dark:prose-invert max-w-none">
+                <div dangerouslySetInnerHTML={{ __html: description }} />
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="requirements" className="space-y-6 py-4">
+              {requirements ? (
+                <div className="prose prose-lg prose-stone dark:prose-invert max-w-none">
+                  <div dangerouslySetInnerHTML={{ __html: requirements }} />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium mb-2">\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0639\u0646 \u0627\u0644\u0645\u062a\u0637\u0644\u0628\u0627\u062a</p>
+                  <p className="text-muted-foreground">
+                    \u064a\u0631\u062c\u0649 \u0632\u064a\u0627\u0631\u0629 \u0635\u0641\u062d\u0629 \u0627\u0644\u0645\u0646\u062d\u0629 \u0627\u0644\u0631\u0633\u0645\u064a\u0629 \u0644\u0644\u062d\u0635\u0648\u0644 \u0639\u0644\u0649 \u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0645\u0641\u0635\u0644\u0629 \u0639\u0646 \u0627\u0644\u0645\u062a\u0637\u0644\u0628\u0627\u062a.
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="benefits" className="space-y-6 py-4">
+              {benefits ? (
+                <div className="prose prose-lg prose-stone dark:prose-invert max-w-none">
+                  <div dangerouslySetInnerHTML={{ __html: benefits }} />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium mb-2">\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0639\u0646 \u0627\u0644\u0645\u0632\u0627\u064a\u0627</p>
+                  <p className="text-muted-foreground">
+                    \u064a\u0631\u062c\u0649 \u0632\u064a\u0627\u0631\u0629 \u0635\u0641\u062d\u0629 \u0627\u0644\u0645\u0646\u062d\u0629 \u0627\u0644\u0631\u0633\u0645\u064a\u0629 \u0644\u0644\u062d\u0635\u0648\u0644 \u0639\u0644\u0649 \u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0645\u0641\u0635\u0644\u0629 \u0639\u0646 \u0627\u0644\u0645\u0632\u0627\u064a\u0627.
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* الشريط الجانبي والمعلومات الإضافية */}
+        <div className="space-y-6">
+          {/* قسم التقديم */}
+          <div className="bg-card rounded-lg p-6 border space-y-4">
+            <h3 className="text-xl font-semibold mb-4">\u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0627\u0644\u062a\u0642\u062f\u064a\u0645</h3>
+            
+            <div className="space-y-3">
+              {deadline && (
+                <div className="flex items-center">
+                  <Calendar className="h-5 w-5 ml-3 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">\u0627\u0644\u0645\u0648\u0639\u062f \u0627\u0644\u0646\u0647\u0627\u0626\u064a</p>
+                    <p className="font-medium">{formattedDeadline}</p>
+                  </div>
+                </div>
+              )}
               
-              <Button variant="outline" onClick={printScholarship} className="flex-1 sm:flex-none sm:w-auto">
-                <Printer className="ml-2 h-4 w-4" />
-                طباعة
-              </Button>
+              <Separator />
+              
+              {applyUrl && (
+                <div className="pt-3">
+                  <Link href={applyUrl} target="_blank" rel="noopener noreferrer">
+                    <Button className="w-full">
+                      \u0627\u0644\u062a\u0642\u062f\u064a\u0645 \u0644\u0644\u0645\u0646\u062d\u0629
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
-          
-          {/* القسم الجانبي */}
-          <div className="lg:col-span-1">
-            {/* مربع ملخص المنحة */}
-            <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-              <h3 className="mb-3 text-lg font-bold">ملخص المنحة</h3>
+
+          {/* معلومات إضافية */}
+          <div className="bg-card rounded-lg p-6 border space-y-4">
+            <h3 className="text-xl font-semibold mb-4">\u0627\u0644\u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0627\u0644\u0623\u0633\u0627\u0633\u064a\u0629</h3>
+            
+            <div className="space-y-4">
+              {countryName && (
+                <div className="flex items-center">
+                  <MapPin className="h-5 w-5 ml-3 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">\u0627\u0644\u0628\u0644\u062f</p>
+                    <p className="font-medium">{countryName}</p>
+                  </div>
+                </div>
+              )}
               
-              <div className="space-y-3 text-sm">
-                {scholarship.university && (
-                  <div className="flex justify-between border-b border-gray-100 pb-2 dark:border-gray-800">
-                    <span className="font-medium">الجامعة:</span>
-                    <span>{scholarship.university}</span>
+              {university && (
+                <div className="flex items-center">
+                  <School className="h-5 w-5 ml-3 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">\u0627\u0644\u062c\u0627\u0645\u0639\u0629</p>
+                    <p className="font-medium">{university}</p>
                   </div>
-                )}
-                
-                {scholarship.level && (
-                  <div className="flex justify-between border-b border-gray-100 pb-2 dark:border-gray-800">
-                    <span className="font-medium">المستوى الدراسي:</span>
-                    <span>{typeof scholarship.level === 'object' ? scholarship.level.name : scholarship.level}</span>
-                  </div>
-                )}
-                
-                {scholarship.country && (
-                  <div className="flex justify-between border-b border-gray-100 pb-2 dark:border-gray-800">
-                    <span className="font-medium">الدولة:</span>
-                    <span>{typeof scholarship.country === 'object' ? scholarship.country.name : scholarship.country}</span>
-                  </div>
-                )}
-                
-                {scholarship.category && (
-                  <div className="flex justify-between border-b border-gray-100 pb-2 dark:border-gray-800">
-                    <span className="font-medium">التخصص:</span>
-                    <span>{typeof scholarship.category === 'object' ? scholarship.category.name : scholarship.category}</span>
-                  </div>
-                )}
-                
-                {scholarship.deadline && (
-                  <div className="flex justify-between border-b border-gray-100 pb-2 dark:border-gray-800">
-                    <span className="font-medium">آخر موعد للتقديم:</span>
-                    <span className={isDeadlinePassed ? 'text-red-500 dark:text-red-400' : ''}>
-                      {formatDate(new Date(scholarship.deadline))}
-                    </span>
-                  </div>
-                )}
-                
-                {scholarship.funded !== undefined && (
-                  <div className="flex justify-between pb-2">
-                    <span className="font-medium">نوع التمويل:</span>
-                    <span>
-                      {scholarship.funded ? 'تمويل كامل' : 'تمويل جزئي'}
-                    </span>
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
               
-              {/* أزرار العمليات للشاشة الصغيرة */}
-              {scholarship.url && (
-                <div className="mt-4">
-                  <a href={scholarship.url} target="_blank" rel="noopener noreferrer">
-                    <Button 
-                      className="w-full bg-primary hover:bg-primary/90" 
-                      disabled={isDeadlinePassed}
-                    >
-                      {isDeadlinePassed ? 'انتهى التقديم' : 'التقديم للمنحة'}
-                    </Button>
-                  </a>
+              {degree && (
+                <div className="flex items-center">
+                  <GraduationCap className="h-5 w-5 ml-3 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">\u0627\u0644\u062f\u0631\u062c\u0629 \u0627\u0644\u0639\u0644\u0645\u064a\u0629</p>
+                    <p className="font-medium">{degree}</p>
+                  </div>
+                </div>
+              )}
+              
+              {categoryName && (
+                <div className="flex items-center">
+                  <Building className="h-5 w-5 ml-3 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">\u0627\u0644\u062a\u062e\u0635\u0635</p>
+                    <p className="font-medium">{categoryName}</p>
+                  </div>
                 </div>
               )}
             </div>
-            
-            {/* المنح ذات الصلة - يمكن إضافتها لاحقاً */}
-            {/* <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-              <h3 className="mb-3 text-lg font-bold">منح ذات صلة</h3>
-              <div className="space-y-3">
-                ...
-              </div>
-            </div> */}
+          </div>
+
+          {/* تاريخ النشر والتحديث */}
+          <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
+            <p>\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0646\u0634\u0631: {formattedCreatedAt}</p>
+            <p>\u0622\u062e\u0631 \u062a\u062d\u062f\u064a\u062b: {formattedUpdatedAt}</p>
           </div>
         </div>
       </div>

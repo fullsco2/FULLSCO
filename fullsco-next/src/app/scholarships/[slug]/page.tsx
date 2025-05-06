@@ -1,51 +1,59 @@
 import { Metadata } from 'next';
-import ScholarshipDetail from '@/components/scholarships/scholarship-detail';
-import SiteLayout from '@/components/layouts/site-layout';
+import { ScholarshipDetail } from '@/components/scholarships/scholarship-detail';
 
-interface ScholarshipDetailPageProps {
-  params: {
-    slug: string;
-  };
-}
+type Props = {
+  params: { slug: string }
+};
 
-// توليد بيانات التعريف (ميتاداتا) الديناميكية
-export async function generateMetadata({ params }: ScholarshipDetailPageProps): Promise<Metadata> {
+// هذه الدالة تجلب بيانات المنحة الدراسية بناءً على الـ slug
+// وتستخدم لإنشاء العناوين الوصفية للصفحة
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const slug = params.slug;
+  
   try {
-    // جلب بيانات المنحة من API الحالي
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/scholarships/${params.slug}`);
-    if (!response.ok) {
+    const scholarship = await getScholarship(slug);
+    
+    if (!scholarship) {
       return {
-        title: 'منحة دراسية | FULLSCO',
-        description: 'تفاصيل المنحة الدراسية',
+        title: 'منحة غير موجودة | منصة المنح الدراسية',
+        description: 'لم يتم العثور على المنحة الدراسية المطلوبة',
       };
     }
     
-    const scholarship = await response.json();
-    const data = scholarship.data || scholarship;
-    
     return {
-      title: `${data.title} | FULLSCO`,
-      description: data.description?.slice(0, 160) || 'تفاصيل المنحة الدراسية',
-      keywords: data.keywords || `منح دراسية, ${data.level?.name || ''}, ${data.category?.name || ''}, ${data.country?.name || ''}`.trim(),
-      openGraph: {
-        title: data.title,
-        description: data.description?.slice(0, 160) || 'تفاصيل المنحة الدراسية',
-        images: data.thumbnail ? [{ url: data.thumbnail }] : [],
-      },
+      title: `${scholarship.title} | منصة المنح الدراسية`,
+      description: scholarship.excerpt || scholarship.title,
     };
   } catch (error) {
-    console.error('Error fetching scholarship metadata:', error);
+    console.error('Error fetching scholarship for metadata:', error);
     return {
-      title: 'منحة دراسية | FULLSCO',
-      description: 'تفاصيل المنحة الدراسية',
+      title: 'تفاصيل المنحة | منصة المنح الدراسية',
+      description: 'تفاصيل المنحة الدراسية ومتطلبات التقديم',
     };
   }
 }
 
-export default function ScholarshipDetailPage({ params }: ScholarshipDetailPageProps) {
-  return (
-    <SiteLayout>
-      <ScholarshipDetail slug={params.slug} />
-    </SiteLayout>
-  );
+// دالة مساعدة لجلب بيانات المنحة الدراسية
+async function getScholarship(slug: string) {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/scholarships/${slug}`, { 
+      cache: 'no-store'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch scholarship: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching scholarship:', error);
+    return null;
+  }
+}
+
+export default function ScholarshipDetailPage({ params }: Props) {
+  const { slug } = params;
+  
+  return <ScholarshipDetail slug={slug} />;
 }
