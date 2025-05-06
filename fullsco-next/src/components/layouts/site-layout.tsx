@@ -27,7 +27,6 @@ interface SiteLayoutProps {
 
 export default function SiteLayout({ children, showFooter = true }: SiteLayoutProps) {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -45,26 +44,12 @@ export default function SiteLayout({ children, showFooter = true }: SiteLayoutPr
       }
     };
 
-    // التحقق من حالة تسجيل الدخول
-    const checkAuthStatus = async () => {
-      try {
-        const response = await fetch('/api/user');
-        // إذا كانت الاستجابة ناجحة، فالمستخدم مسجل الدخول
-        if (response.ok) {
-          setIsLoggedIn(true);
-        }
-      } catch (error) {
-        console.error('Error checking auth status:', error);
-      }
-    };
-
     fetchSettings();
-    checkAuthStatus();
   }, []);
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header settings={settings || {}} isLoggedIn={isLoggedIn} />
+      <Header settings={settings || {}} />
       <main className="flex-grow">
         {children}
       </main>

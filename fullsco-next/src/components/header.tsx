@@ -157,27 +157,9 @@ const Header = ({ settings }: HeaderProps) => {
             </div>
             
             <div className="flex items-center gap-2 md:gap-3">
-              {isLoggedIn ? (
-                <Link href="/admin/dashboard" className="hidden sm:block">
-                  <Button 
-                    className="button-hover items-center gap-2 rounded-full border-primary/30 bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-sm hover:shadow-md hover:from-primary/15 hover:to-primary/10 hover:border-primary/40 transition-all duration-300"
-                    variant="outline"
-                  >
-                    <User className="h-4 w-4" />
-                    <span>لوحة التحكم</span>
-                  </Button>
-                </Link>
-              ) : (
-                <Link href="/auth" className="hidden sm:block">
-                  <Button 
-                    variant="outline" 
-                    className="button-hover items-center gap-2 rounded-full border-primary/30 bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-sm hover:shadow-md hover:from-primary/15 hover:to-primary/10 hover:border-primary/40 transition-all duration-300"
-                  >
-                    <User className="h-4 w-4" />
-                    <span>تسجيل الدخول</span>
-                  </Button>
-                </Link>
-              )}
+              <div className="hidden sm:block">
+                <UserMenu />
+              </div>
               
               <Link href="/subscribe">
                 <Button 
@@ -234,17 +216,9 @@ const Header = ({ settings }: HeaderProps) => {
               </Link>
               
               {/* زر تسجيل الدخول للجوال */}
-              {isLoggedIn ? (
-                <Link href="/admin/dashboard" className="mt-4 flex items-center gap-2 rounded-md bg-primary/5 px-3 py-2.5 text-base font-medium text-primary hover:bg-primary/10">
-                  <User className="h-5 w-5" />
-                  <span>لوحة التحكم</span>
-                </Link>
-              ) : (
-                <Link href="/auth" className="mt-4 flex items-center gap-2 rounded-md bg-primary/5 px-3 py-2.5 text-base font-medium text-primary hover:bg-primary/10">
-                  <User className="h-5 w-5" />
-                  <span>تسجيل الدخول</span>
-                </Link>
-              )}
+              <div className="mt-4 md:hidden">
+                <UserMenu />
+              </div>
             </div>
           </div>
         </div>
