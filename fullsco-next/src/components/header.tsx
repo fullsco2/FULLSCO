@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, ChevronDown, Menu, User } from "lucide-react";
+import { Search, ChevronDown, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { UserMenu } from "@/components/user-menu";
 
 interface HeaderProps {
   settings?: {
@@ -12,10 +13,9 @@ interface HeaderProps {
     siteTagline?: string;
     logo?: string;
   };
-  isLoggedIn?: boolean;
 }
 
-const Header = ({ settings, isLoggedIn = false }: HeaderProps) => {
+const Header = ({ settings }: HeaderProps) => {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
