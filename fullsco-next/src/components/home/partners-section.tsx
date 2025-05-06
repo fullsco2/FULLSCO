@@ -1,92 +1,104 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getPartners } from '@/lib/api';
+import { useEffect, useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { useSiteSettings } from '@/hooks/use-site-settings';
+import { Loader2 } from 'lucide-react';
 
-interface PartnersSectionProps {
-  title?: string;
+type Partner = {
+  id: number;
+  name: string;
+  logo: string;
+  url?: string;
   description?: string;
-}
+};
 
-export default function PartnersSection({
-  title = 'شركاؤنا',
-  description = 'المؤسسات والجامعات التي نتعاون معها',
-}: PartnersSectionProps) {
-  const [partners, setPartners] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export function PartnersSection() {
+  const { siteSettings } = useSiteSettings();
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    async function loadPartners() {
+    const fetchPartners = async () => {
       try {
-        // طلب مباشر للتأكد من التعامل مع الخادم الحالي
+        setIsLoading(true);
         const response = await fetch('/api/partners');
+        
         if (!response.ok) {
-          throw new Error(`فشل الطلب: ${response.status}`);
+          throw new Error(`Error fetching partners: ${response.status}`);
         }
         
         const data = await response.json();
-        
-        // التعامل مع هيكل البيانات من API الحالي
-        if (data.success && data.data) {
-          setPartners(data.data);
-        } else if (Array.isArray(data)) {
-          setPartners(data);
-        } else {
-          setPartners([]);
-        }
+        setPartners(data?.data || []);
       } catch (error) {
-        console.error('Error loading partners:', error);
+        console.error('Error fetching partners:', error);
+        setPartners([]);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
-    }
+    };
 
-    loadPartners();
-  }, []);
+    if (siteSettings?.showPartnersSection) {
+      fetchPartners();
+    }
+  }, [siteSettings]);
+
+  if (!siteSettings || !siteSettings.showPartnersSection || (partners.length === 0 && !isLoading)) return null;
 
   return (
-    <section className="bg-gray-50 py-14 dark:bg-gray-900/50 md:py-20">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-10 text-center">
-          <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white md:text-3xl">{title}</h2>
-          <p className="mx-auto max-w-2xl text-gray-600 dark:text-gray-300">{description}</p>
+    <section className="py-12 md:py-16">
+      <div className="container px-4 md:px-6">
+        <div className="text-center mb-10">
+          <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
+            {siteSettings.partnersSectionTitle || 'شركاؤنا'}
+          </h2>
+          <p className="mt-2 text-muted-foreground">
+            {siteSettings.partnersSectionDescription || 'المؤسسات والجامعات التي نتعاون معها'}
+          </p>
         </div>
 
-        {loading ? (
-          <div className="flex flex-wrap items-center justify-center gap-8">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="animate-pulse">
-                <div className="h-20 w-32 bg-gray-200 dark:bg-gray-800 rounded-md"></div>
-              </div>
-            ))}
-          </div>
-        ) : partners.length === 0 ? (
-          <div className="py-10 text-center">
-            <p className="text-gray-500 dark:text-gray-400">لا يوجد شركاء متاحين حالياً.</p>
+        {isLoading ? (
+          <div className="flex justify-center items-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="mr-2">جاري تحميل الشركاء...</span>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
             {partners.map((partner) => (
-              <div 
-                key={partner.id} 
-                className="group grayscale transition-all duration-300 hover:grayscale-0"
-              >
-                {partner.logo ? (
-                  <img 
-                    src={partner.logo} 
-                    alt={partner.name} 
-                    className="max-h-16 w-auto md:max-h-20"
-                  />
-                ) : (
-                  <div className="flex h-16 items-center justify-center rounded-md bg-gray-100 px-4 dark:bg-gray-800 md:h-20">
-                    <span className="text-lg font-bold text-gray-700 dark:text-gray-300">{partner.name}</span>
-                  </div>
-                )}
-              </div>
+              <PartnerCard key={partner.id} partner={partner} />
             ))}
           </div>
         )}
       </div>
     </section>
+  );
+}
+
+function PartnerCard({ partner }: { partner: Partner }) {
+  return (
+    <Card className="overflow-hidden border-0 shadow-sm hover:shadow-md transition-shadow duration-300">
+      <CardContent className="p-4 flex items-center justify-center h-[120px]">
+        {partner.logo ? (
+          <a 
+            href={partner.url || '#'} 
+            target={partner.url ? '_blank' : '_self'}
+            rel="noopener noreferrer"
+            className="w-full h-full flex items-center justify-center"
+          >
+            <img 
+              src={partner.logo} 
+              alt={partner.name} 
+              className="max-h-[90px] max-w-full object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement!.innerHTML = `<div class="text-center p-2 w-full">${partner.name}</div>`;
+              }}
+            />
+          </a>
+        ) : (
+          <div className="text-center p-2 w-full">{partner.name}</div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

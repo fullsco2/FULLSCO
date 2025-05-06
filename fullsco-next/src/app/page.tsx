@@ -1,32 +1,31 @@
 import { Metadata } from 'next';
-import SiteLayout from '@/components/layouts/site-layout';
-import HomePage from '@/components/home/home-page';
-import { getSiteSettings } from '@/lib/api';
+import { HeroSection } from '@/components/home/hero-section';
+import { FeaturedScholarships } from '@/components/home/featured-scholarships';
+import { CategoriesSection } from '@/components/home/categories-section';
+import { CountriesSection } from '@/components/home/countries-section';
+import { LatestArticlesSection } from '@/components/home/latest-articles-section';
+import { SuccessStoriesSection } from '@/components/home/success-stories-section';
+import { StatisticsSection } from '@/components/home/statistics-section';
+import { NewsletterSection } from '@/components/home/newsletter-section';
+import { PartnersSection } from '@/components/home/partners-section';
 
-// ميتاداتا الصفحة الرئيسية
-export async function generateMetadata(): Promise<Metadata> {
-  try {
-    const siteSettings = await getSiteSettings();
-    
-    return {
-      title: siteSettings?.siteName || 'FULLSCO - منصة المنح الدراسية',
-      description: siteSettings?.siteDescription || 'المنصة العربية الأولى للمنح الدراسية وفرص الدراسة في الخارج',
-      keywords: siteSettings?.siteKeywords || 'منح دراسية, دراسة في الخارج, بكالوريوس, ماجستير, دكتوراه',
-    };
-  } catch (error) {
-    console.error('Error fetching site settings for metadata:', error);
-    
-    return {
-      title: 'FULLSCO - منصة المنح الدراسية',
-      description: 'المنصة العربية الأولى للمنح الدراسية وفرص الدراسة في الخارج',
-    };
-  }
-}
+export const metadata: Metadata = {
+  title: 'الصفحة الرئيسية | منصة المنح الدراسية',
+  description: 'ابحث عن المنح الدراسية المناسبة لك واكتشف الفرص التعليمية حول العالم',
+};
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <SiteLayout showFooter={true}>
-      <HomePage />
-    </SiteLayout>
+    <main>
+      <HeroSection />
+      <FeaturedScholarships />
+      <CategoriesSection />
+      <CountriesSection />
+      <StatisticsSection />
+      <LatestArticlesSection />
+      <SuccessStoriesSection />
+      <NewsletterSection />
+      <PartnersSection />
+    </main>
   );
 }

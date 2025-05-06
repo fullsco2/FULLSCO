@@ -1,39 +1,30 @@
 'use client';
 
-import { useState } from 'react';
-import { Send, CheckCircle, AlertCircle } from 'lucide-react';
+import { useState, FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Mail, Check, Loader2, X } from 'lucide-react';
+import { useSiteSettings } from '@/hooks/use-site-settings';
 
-interface NewsletterSectionProps {
-  title?: string;
-  description?: string;
-}
-
-export default function NewsletterSection({
-  title = 'النشرة البريدية',
-  description = 'اشترك ليصلك كل جديد عن المنح الدراسية',
-}: NewsletterSectionProps) {
+export function NewsletterSection() {
+  const { siteSettings } = useSiteSettings();
   const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [message, setMessage] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  if (!siteSettings || !siteSettings.showNewsletterSection) return null;
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    
-    if (!email) {
-      setError('يرجى إدخال عنوان البريد الإلكتروني');
+    if (!email || !email.includes('@')) {
+      setStatus('error');
+      setMessage('يرجى إدخال بريد إلكتروني صحيح');
       return;
     }
-    
-    // التحقق من صحة البريد الإلكتروني بطريقة بسيطة
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError('يرجى إدخال عنوان بريد إلكتروني صحيح');
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
+
+    setIsSubmitting(true);
+    setStatus('idle');
     
     try {
       const response = await fetch('/api/subscribers', {
@@ -43,78 +34,80 @@ export default function NewsletterSection({
         },
         body: JSON.stringify({ email }),
       });
+
+      const data = await response.json();
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'حدث خطأ أثناء الاشتراك');
+      if (response.ok) {
+        setStatus('success');
+        setMessage('تم الاشتراك بنجاح! سوف تصلك أحدث المنح والفرص.');
+        setEmail('');
+      } else {
+        setStatus('error');
+        setMessage(data.message || 'حدث خطأ أثناء الاشتراك، يرجى المحاولة مرة أخرى.');
       }
-      
-      setSuccess(true);
-      setEmail('');
-    } catch (err) {
-      console.error('Error subscribing to newsletter:', err);
-      setError(err instanceof Error ? err.message : 'حدث خطأ أثناء الاشتراك. يرجى المحاولة مرة أخرى.');
+    } catch (error) {
+      setStatus('error');
+      setMessage('حدث خطأ أثناء الاشتراك، يرجى المحاولة مرة أخرى.');
+      console.error('Newsletter subscription error:', error);
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <section className="bg-primary py-16 text-white md:py-24">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl text-center">
-          <h2 className="mb-3 text-2xl font-bold md:text-3xl">{title}</h2>
-          <p className="mb-8 text-white/90">{description}</p>
-          
-          <form onSubmit={handleSubmit} className="mx-auto max-w-xl">
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <input
+    <section className="py-12 md:py-16 bg-primary/5">
+      <div className="container px-4 md:px-6">
+        <div className="max-w-3xl mx-auto text-center">
+          <div className="inline-block p-3 mb-4 rounded-full bg-primary/10 text-primary">
+            <Mail className="h-6 w-6" />
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight md:text-3xl mb-2">
+            {siteSettings.newsletterSectionTitle || 'النشرة البريدية'}
+          </h2>
+          <p className="text-muted-foreground mb-6">
+            {siteSettings.newsletterSectionDescription || 'اشترك ليصلك كل جديد عن المنح الدراسية'}
+          </p>
+
+          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-lg mx-auto">
+            <div className="relative flex-1">
+              <Input
                 type="email"
+                placeholder="البريد الإلكتروني"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="أدخل بريدك الإلكتروني"
-                className="flex-1 rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white placeholder:text-white/60 focus:border-white focus:outline-none focus:ring-1 focus:ring-white"
-                disabled={loading || success}
+                className="pl-4 pr-10 py-6"
+                disabled={isSubmitting}
+                aria-label="البريد الإلكتروني"
               />
-              <Button
-                type="submit"
-                size="lg"
-                className="gap-2 bg-white text-primary hover:bg-white/90 disabled:bg-white/70"
-                disabled={loading || success}
-              >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                    جاري الاشتراك...
-                  </span>
-                ) : success ? (
-                  <span className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5" />
-                    تم الاشتراك
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-2">
-                    <Send className="h-5 w-5" />
-                    اشترك الآن
-                  </span>
-                )}
-              </Button>
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             </div>
-            
-            {error && (
-              <div className="mt-3 flex items-center justify-center gap-1 rounded-md bg-red-500/20 p-2 text-sm">
-                <AlertCircle className="h-4 w-4" />
-                <span>{error}</span>
-              </div>
-            )}
-            
-            {success && (
-              <div className="mt-3 flex items-center justify-center gap-1 rounded-md bg-green-500/20 p-2 text-sm">
-                <CheckCircle className="h-4 w-4" />
-                <span>تم الاشتراك بنجاح! سيصلك آخر المستجدات على بريدك الإلكتروني.</span>
-              </div>
-            )}
+            <Button type="submit" disabled={isSubmitting} className="h-12">
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  جاري الاشتراك...
+                </>
+              ) : 'اشترك الآن'}
+            </Button>
           </form>
+
+          {status === 'success' && (
+            <div className="mt-4 p-3 bg-green-100 text-green-700 rounded-md flex items-center justify-center">
+              <Check className="mr-2 h-4 w-4" />
+              {message}
+            </div>
+          )}
+          
+          {status === 'error' && (
+            <div className="mt-4 p-3 bg-red-100 text-red-700 rounded-md flex items-center justify-center">
+              <X className="mr-2 h-4 w-4" />
+              {message}
+            </div>
+          )}
+
+          <p className="text-sm text-muted-foreground mt-6">
+            نحن نحترم خصوصيتك. يمكنك إلغاء الاشتراك في أي وقت.
+          </p>
         </div>
       </div>
     </section>
